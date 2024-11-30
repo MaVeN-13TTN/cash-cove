@@ -1,0 +1,14 @@
+targets:
+  $default:
+    builders:
+      mockito|mockBuilder:
+        enabled: true
+        generate_for:
+          include:
+            - test/core/services/api/mocks.dart
+            - test/mocks/mocks.dart
+            - test/core/services/api/request_manager_test.dart
+        options:
+          build_extensions:
+            '^test/mocks/mocks.dart': 'test/mocks/mocks.mocks.dart'
+            '^test/core/services/api/request_manager_test.dart': 'test/core/services/api/request_manager_test.mocks.dart'
