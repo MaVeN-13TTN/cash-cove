@@ -8,6 +8,10 @@ class AppTheme {
     textPrimary: Color(0xFF2D3748),
     textSecondary: Color(0xFF4A5568),
     divider: Color(0xFFE2E8F0),
+    error: Color(0xFFDC2626),
+    success: Color(0xFF059669),
+    warning: Color(0xFFF59E0B),
+    info: Color(0xFF3B82F6),
   );
 
   static const darkColors = AppColors(
@@ -17,6 +21,10 @@ class AppTheme {
     textPrimary: Color(0xFFF7FAFC),
     textSecondary: Color(0xFFE2E8F0),
     divider: Color(0xFF4A5568),
+    error: Color(0xFFFCA5A5),
+    success: Color(0xFF34D399),
+    warning: Color(0xFFFBD38D),
+    info: Color(0xFF93C5FD),
   );
 
   static ThemeData light() {
@@ -38,8 +46,8 @@ class AppTheme {
       colorScheme: ColorScheme.fromSeed(
         seedColor: colors.primary,
         surface: colors.surface,
-        surfaceContainer: colors.surfaceContainer,
-        primary: colors.primary,
+        error: colors.error,
+        brightness: colors == lightColors ? Brightness.light : Brightness.dark,
       ),
       scaffoldBackgroundColor: colors.surface,
       cardTheme: CardTheme(
@@ -73,6 +81,11 @@ class AppTheme {
           fontSize: 14,
           color: colors.textPrimary,
         ),
+        labelLarge: TextStyle(
+          fontSize: 14,
+          fontWeight: FontWeight.w600,
+          color: colors.textPrimary,
+        ),
         labelMedium: TextStyle(
           fontSize: 12,
           fontWeight: FontWeight.w500,
@@ -86,6 +99,7 @@ class AppTheme {
       inputDecorationTheme: InputDecorationTheme(
         filled: true,
         fillColor: colors.surfaceContainer,
+        contentPadding: contentPadding,
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(borderRadius),
           borderSide: BorderSide(color: colors.divider),
@@ -100,18 +114,50 @@ class AppTheme {
         ),
         errorBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(borderRadius),
-          borderSide: const BorderSide(color: Colors.red),
+          borderSide: BorderSide(color: colors.error),
         ),
-        contentPadding: contentPadding,
+        focusedErrorBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(borderRadius),
+          borderSide: BorderSide(color: colors.error, width: 2),
+        ),
+        labelStyle: TextStyle(color: colors.textSecondary),
+        hintStyle: TextStyle(color: colors.textSecondary),
       ),
       elevatedButtonTheme: ElevatedButtonThemeData(
         style: ElevatedButton.styleFrom(
+          padding: buttonPadding,
           backgroundColor: colors.primary,
           foregroundColor: colors.surfaceContainer,
-          padding: buttonPadding,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(borderRadius),
           ),
+          elevation: 0,
+        ),
+      ),
+      textButtonTheme: TextButtonThemeData(
+        style: TextButton.styleFrom(
+          padding: buttonPadding,
+          foregroundColor: colors.primary,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(borderRadius),
+          ),
+        ),
+      ),
+      bottomNavigationBarTheme: BottomNavigationBarThemeData(
+        backgroundColor: colors.surfaceContainer,
+        selectedItemColor: colors.primary,
+        unselectedItemColor: colors.textSecondary,
+      ),
+      bottomSheetTheme: BottomSheetThemeData(
+        backgroundColor: colors.surfaceContainer,
+        shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(top: Radius.circular(borderRadius)),
+        ),
+      ),
+      dialogTheme: DialogTheme(
+        backgroundColor: colors.surfaceContainer,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(borderRadius),
         ),
       ),
     );
@@ -126,6 +172,10 @@ class AppColors {
   final Color textPrimary;
   final Color textSecondary;
   final Color divider;
+  final Color error;
+  final Color success;
+  final Color warning;
+  final Color info;
 
   const AppColors({
     required this.surface,
@@ -134,5 +184,9 @@ class AppColors {
     required this.textPrimary,
     required this.textSecondary,
     required this.divider,
+    required this.error,
+    required this.success,
+    required this.warning,
+    required this.info,
   });
 }
