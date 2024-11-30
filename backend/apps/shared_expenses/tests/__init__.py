@@ -1,0 +1,3 @@
+"""
+Shared expenses tests initialization.
+"""
