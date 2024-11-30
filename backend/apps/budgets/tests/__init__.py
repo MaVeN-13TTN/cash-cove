@@ -1,0 +1,3 @@
+"""
+Budgets tests initialization.
+"""

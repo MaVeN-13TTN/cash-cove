@@ -1,0 +1,3 @@
+"""
+Budgets API initialization.
+"""
