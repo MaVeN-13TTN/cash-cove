@@ -19,17 +19,9 @@ class ApiClient extends GetxService {
   final _metrics = <String, List<int>>{};
   static ApiClient? _instance;
 
-  // Private constructor for normal use
-  ApiClient._({
-    required SecureStorage storage,
-    String baseUrl = 'https://default.url',
-    dio.Dio? testDio,
-  }) : _storage = storage {
-    _dio = testDio ?? dio.Dio(
+  ApiClient._({required SecureStorage storage}) : _storage = storage {
+    _dio = dio.Dio(
       dio.BaseOptions(
-        baseUrl: baseUrl,
-        connectTimeout: const Duration(seconds: 5),
-        receiveTimeout: const Duration(seconds: 3),
         headers: {
           'Content-Type': 'application/json',
           'Accept': 'application/json',
@@ -37,6 +29,13 @@ class ApiClient extends GetxService {
       ),
     );
     _requestManager = RequestManager(dio: _dio);
+  }
+
+  static ApiClient get instance {
+    if (_instance == null) {
+      throw StateError('ApiClient must be initialized first. Call ApiClient.initialize()');
+    }
+    return _instance!;
   }
 
   static Future<ApiClient> initialize({
@@ -48,13 +47,12 @@ class ApiClient extends GetxService {
       final storage = await SecureStorage.initialize();
       _instance = ApiClient._(
         storage: storage,
-        baseUrl: baseUrl,
-        testDio: testDio,
       );
       await _instance!._initOfflineQueue();
       if (testDio == null) {
         _instance!._setupInterceptors();
       }
+      _instance!._dio.options.baseUrl = baseUrl;
       Get.put(_instance!);
     }
     return _instance!;
@@ -93,15 +91,15 @@ class ApiClient extends GetxService {
   }
 
   Map<String, dynamic> getCacheMetrics() {
-    final cacheInterceptor = _dio.interceptors
-        .whereType<CacheInterceptor>()
-        .firstOrNull;
-    
-    return cacheInterceptor?.metrics ?? {
-      'hits': 0,
-      'misses': 0,
-      'size': 0,
-    };
+    final cacheInterceptor =
+        _dio.interceptors.whereType<CacheInterceptor>().firstOrNull;
+
+    return cacheInterceptor?.metrics ??
+        {
+          'hits': 0,
+          'misses': 0,
+          'size': 0,
+        };
   }
 
   Future<void> _initOfflineQueue() async {
@@ -139,7 +137,7 @@ class ApiClient extends GetxService {
   void _trackRequestTiming(String path, int milliseconds) {
     _metrics[path] ??= [];
     _metrics[path]!.add(milliseconds);
-    
+
     // Keep only last 100 requests
     if (_metrics[path]!.length > 100) {
       _metrics[path]!.removeAt(0);
@@ -150,7 +148,7 @@ class ApiClient extends GetxService {
   Duration getAverageResponseTime(String path) {
     final times = _metrics[path];
     if (times == null || times.isEmpty) return Duration.zero;
-    
+
     final avg = times.reduce((a, b) => a + b) / times.length;
     return Duration(milliseconds: avg.round());
   }
@@ -164,7 +162,7 @@ class ApiClient extends GetxService {
     bool useCache = true,
   }) async {
     final stopwatch = Stopwatch()..start();
-    
+
     try {
       final response = await _dio.get<T>(
         path,
@@ -177,11 +175,11 @@ class ApiClient extends GetxService {
               }),
         cancelToken: cancelToken,
       );
-      
+
       _trackRequestTiming(path, stopwatch.elapsedMilliseconds);
       return response.data as T;
     } catch (e) {
-      if (e is dio.DioException && 
+      if (e is dio.DioException &&
           e.type == dio.DioExceptionType.connectionError) {
         // Queue request for offline processing
         await _offlineQueue.enqueueRequest(QueuedRequest(
@@ -205,7 +203,7 @@ class ApiClient extends GetxService {
     dio.CancelToken? cancelToken,
   }) async {
     final stopwatch = Stopwatch()..start();
-    
+
     try {
       final response = await _dio.post<T>(
         path,
@@ -214,11 +212,11 @@ class ApiClient extends GetxService {
         options: options,
         cancelToken: cancelToken,
       );
-      
+
       _trackRequestTiming(path, stopwatch.elapsedMilliseconds);
       return response.data as T;
     } catch (e) {
-      if (e is dio.DioException && 
+      if (e is dio.DioException &&
           e.type == dio.DioExceptionType.connectionError) {
         // Queue request for offline processing
         await _offlineQueue.enqueueRequest(QueuedRequest(
@@ -243,7 +241,7 @@ class ApiClient extends GetxService {
     dio.CancelToken? cancelToken,
   }) async {
     final stopwatch = Stopwatch()..start();
-    
+
     try {
       final response = await _dio.put<T>(
         path,
@@ -252,11 +250,11 @@ class ApiClient extends GetxService {
         options: options,
         cancelToken: cancelToken,
       );
-      
+
       _trackRequestTiming(path, stopwatch.elapsedMilliseconds);
       return response.data as T;
     } catch (e) {
-      if (e is dio.DioException && 
+      if (e is dio.DioException &&
           e.type == dio.DioExceptionType.connectionError) {
         // Queue request for offline processing
         await _offlineQueue.enqueueRequest(QueuedRequest(
@@ -281,7 +279,7 @@ class ApiClient extends GetxService {
     dio.CancelToken? cancelToken,
   }) async {
     final stopwatch = Stopwatch()..start();
-    
+
     try {
       final response = await _dio.delete<T>(
         path,
@@ -290,11 +288,11 @@ class ApiClient extends GetxService {
         options: options,
         cancelToken: cancelToken,
       );
-      
+
       _trackRequestTiming(path, stopwatch.elapsedMilliseconds);
       return response.data as T;
     } catch (e) {
-      if (e is dio.DioException && 
+      if (e is dio.DioException &&
           e.type == dio.DioExceptionType.connectionError) {
         // Queue request for offline processing
         await _offlineQueue.enqueueRequest(QueuedRequest(
@@ -319,7 +317,7 @@ class ApiClient extends GetxService {
     dio.CancelToken? cancelToken,
   }) async {
     final stopwatch = Stopwatch()..start();
-    
+
     try {
       final response = await _dio.patch<T>(
         path,
@@ -328,11 +326,11 @@ class ApiClient extends GetxService {
         options: options,
         cancelToken: cancelToken,
       );
-      
+
       _trackRequestTiming(path, stopwatch.elapsedMilliseconds);
       return response.data as T;
     } catch (e) {
-      if (e is dio.DioException && 
+      if (e is dio.DioException &&
           e.type == dio.DioExceptionType.connectionError) {
         // Queue request for offline processing
         await _offlineQueue.enqueueRequest(QueuedRequest(

@@ -62,30 +62,92 @@ class StorageUtils {
     }
   }
 
-  // Auth Token
+  // Auth specific methods
+  static const _tokenKey = 'auth_token';
+  static const _refreshTokenKey = 'refresh_token';
+  static const _userKey = 'user_data';
+  static const _rememberMeKey = 'remember_me';
+  static const _biometricEnabledKey = 'biometric_enabled';
+  static const _savedEmailKey = 'saved_email';
+
+  /// Saves the authentication token
   static Future<void> saveToken(String token) async {
-    await saveSecure('auth_token', token);
+    await saveSecure(_tokenKey, token);
   }
 
+  /// Gets the stored authentication token
   static Future<String?> getToken() async {
-    return await getSecure('auth_token');
+    return await getSecure(_tokenKey);
   }
 
+  /// Deletes the authentication token
   static Future<void> deleteToken() async {
-    await deleteSecure('auth_token');
+    await deleteSecure(_tokenKey);
   }
 
-  // User Data
+  /// Saves the refresh token
+  static Future<void> saveRefreshToken(String token) async {
+    await saveSecure(_refreshTokenKey, token);
+  }
+
+  /// Gets the stored refresh token
+  static Future<String?> getRefreshToken() async {
+    return await getSecure(_refreshTokenKey);
+  }
+
+  /// Saves the user data
   static Future<void> saveUser(Map<String, dynamic> userData) async {
-    await saveMap('user_data', userData);
+    await saveMap(_userKey, userData);
   }
 
+  /// Gets the stored user data
   static Future<Map<String, dynamic>?> getUser() async {
-    return await getMap('user_data');
+    return await getMap(_userKey);
   }
 
+  /// Deletes the user data
   static Future<void> deleteUser() async {
-    await deleteSecure('user_data');
+    await deleteSecure(_userKey);
+  }
+
+  /// Saves the remember me preference
+  static Future<void> saveRememberMe(bool value) async {
+    await saveSecure(_rememberMeKey, value.toString());
+  }
+
+  /// Gets the stored remember me preference
+  static Future<bool> getRememberMe() async {
+    final value = await getSecure(_rememberMeKey);
+    return value == 'true';
+  }
+
+  /// Saves the biometric authentication preference
+  static Future<void> saveBiometricEnabled(bool value) async {
+    await saveSecure(_biometricEnabledKey, value.toString());
+  }
+
+  /// Gets the stored biometric authentication preference
+  static Future<bool> getBiometricEnabled() async {
+    final value = await getSecure(_biometricEnabledKey);
+    return value == 'true';
+  }
+
+  /// Saves the email for remember me feature
+  static Future<void> saveEmail(String email) async {
+    await saveSecure(_savedEmailKey, email);
+  }
+
+  /// Gets the saved email
+  static Future<String?> getSavedEmail() async {
+    return await getSecure(_savedEmailKey);
+  }
+
+  /// Clears all authentication related data
+  static Future<void> clearAuthData() async {
+    await deleteSecure(_tokenKey);
+    await deleteSecure(_refreshTokenKey);
+    await deleteSecure(_userKey);
+    // Don't clear remember me preference and saved email
   }
 
   // App Settings
