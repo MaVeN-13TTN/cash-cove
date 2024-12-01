@@ -15,6 +15,10 @@ class BudgetModel {
   final double spentAmount;
   final DateTime createdAt;
   final DateTime updatedAt;
+  final String color;
+  final String recurrence;
+  final double notificationThreshold;
+  final String description;
 
   BudgetModel({
     required this.id,
@@ -28,6 +32,10 @@ class BudgetModel {
     required this.spentAmount,
     required this.createdAt,
     required this.updatedAt,
+    this.color = '#6366F1',  // Default color
+    this.recurrence = 'NONE',  // Default recurrence
+    this.notificationThreshold = 80.0,  // Default threshold
+    this.description = '',  // Default description
   });
 
   double get remainingAmount => amount - spentAmount;
