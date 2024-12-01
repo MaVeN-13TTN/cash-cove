@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-enum SocialAuthProvider { google, apple }
+enum SocialAuthProvider { google, facebook, apple }
 
 class SocialAuthButton extends StatelessWidget {
   final SocialAuthProvider provider;
@@ -25,6 +25,10 @@ class SocialAuthButton extends StatelessWidget {
         text = 'Continue with Google';
         icon = Icons.g_mobiledata;
         break;
+      case SocialAuthProvider.facebook:
+        text = 'Continue with Facebook';
+        icon = Icons.facebook;
+        break;
       case SocialAuthProvider.apple:
         text = 'Continue with Apple';
         icon = Icons.apple;
@@ -38,42 +42,28 @@ class SocialAuthButton extends StatelessWidget {
         side: BorderSide(color: theme.dividerColor),
         backgroundColor: theme.colorScheme.surface,
       ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          if (isLoading)
-            Padding(
-              padding: const EdgeInsets.only(right: 8),
-              child: SizedBox(
-                width: 16,
-                height: 16,
-                child: CircularProgressIndicator(
-                  strokeWidth: 2,
-                  valueColor: AlwaysStoppedAnimation<Color>(
-                    theme.colorScheme.primary,
-                  ),
-                ),
+      child: isLoading
+          ? SizedBox(
+              width: 20,
+              height: 20,
+              child: CircularProgressIndicator(
+                strokeWidth: 2,
+                color: theme.colorScheme.primary,
               ),
             )
-          else
-            Icon(
-              icon,
-              size: 24,
-              color: theme.colorScheme.onSurface,
+          : Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(icon, size: 24),
+                const SizedBox(width: 12),
+                Text(
+                  text,
+                  style: theme.textTheme.labelLarge?.copyWith(
+                    color: theme.colorScheme.onSurface,
+                  ),
+                ),
+              ],
             ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Text(
-              text,
-              style: theme.textTheme.labelLarge?.copyWith(
-                color: theme.colorScheme.onSurface,
-              ),
-              textAlign: TextAlign.center,
-            ),
-          ),
-          const SizedBox(width: 24), // Balance the icon space
-        ],
-      ),
     );
   }
 }
