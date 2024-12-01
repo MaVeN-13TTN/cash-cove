@@ -151,7 +151,8 @@ class AppTheme {
       bottomSheetTheme: BottomSheetThemeData(
         backgroundColor: colors.surfaceContainer,
         shape: const RoundedRectangleBorder(
-          borderRadius: BorderRadius.vertical(top: Radius.circular(borderRadius)),
+          borderRadius:
+              BorderRadius.vertical(top: Radius.circular(borderRadius)),
         ),
       ),
       dialogTheme: DialogTheme(
