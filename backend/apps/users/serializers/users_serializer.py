@@ -62,30 +62,38 @@ class UserSerializer(serializers.ModelSerializer[UserType]):
         }
 
     def validate_email(self, value: str) -> str:
-        """Validate email."""
-        if (
-            BaseUser.objects.filter(email__iexact=value)
-            .exclude(id=self.instance.id if self.instance else None)
-            .exists()
-        ):
-            raise serializers.ValidationError(_("User with this email already exists."))
-        return value.lower()
+        """
+        Validate email format and uniqueness.
 
-    def validate_username(self, value: str) -> str:
-        """Validate username."""
-        if (
-            BaseUser.objects.filter(username__iexact=value)
-            .exclude(id=self.instance.id if self.instance else None)
-            .exists()
-        ):
-            raise serializers.ValidationError(
-                _("User with this username already exists.")
-            )
-        if len(value) < 3:
-            raise serializers.ValidationError(
-                _("Username must be at least 3 characters long.")
-            )
-        return value.lower()
+        Args:
+            value: Email to validate
+
+        Returns:
+            str: Validated email
+
+        Raises:
+            serializers.ValidationError: If email is invalid or already in use
+        """
+        if BaseUser.objects.filter(email=value).exists():
+            raise serializers.ValidationError(_("This email is already in use."))
+        return value
+
+    def validate_phone_number(self, value: str) -> str:
+        """
+        Validate phone number format.
+
+        Args:
+            value: Phone number to validate
+
+        Returns:
+            str: Validated phone number
+
+        Raises:
+            serializers.ValidationError: If phone number is invalid
+        """
+        if not value.isdigit() or len(value) not in [10, 11]:
+            raise serializers.ValidationError(_("Invalid phone number format."))
+        return value
 
     def to_representation(self, instance: Type[UserType]) -> Dict[str, Any]:
         """Customize data representation."""

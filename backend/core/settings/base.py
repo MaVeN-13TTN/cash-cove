@@ -41,6 +41,8 @@ THIRD_PARTY_APPS = [
     "rest_framework_simplejwt",
     "drf_spectacular",
     "django_redis",
+    "django_otp",
+    "django_otp.plugins.otp_totp",
 ]
 
 LOCAL_APPS = [
@@ -64,6 +66,7 @@ MIDDLEWARE = [
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
     "allauth.account.middleware.AccountMiddleware",
+    "middleware.error_handling.ErrorHandlingMiddleware",  # Custom error handling middleware
 ]
 
 ROOT_URLCONF = "core.urls"
@@ -156,9 +159,17 @@ REST_FRAMEWORK = {
 # Spectacular API Settings
 SPECTACULAR_SETTINGS = {
     "TITLE": "Budget Tracker API",
-    "DESCRIPTION": "API documentation for Budget Tracker application",
+    "DESCRIPTION": "API documentation for Budget Tracker application with detailed descriptions and examples",
     "VERSION": "1.0.0",
     "SERVE_INCLUDE_SCHEMA": False,
+    "COMPONENT_SPLIT_REQUEST": True,
+    "SERVE_PERMISSIONS": ["rest_framework.permissions.AllowAny"],
+    "SCHEMA_PATH_PREFIX_TRIM": True,
+    "SCHEMA_PATH_PREFIX": "/api",
+    "POSTPROCESSING_HOOKS": [
+        "drf_spectacular.hooks.postprocess_schema_enums",
+        "drf_spectacular.hooks.postprocess_schema_exclude_path_format",
+    ],
 }
 
 # JWT settings

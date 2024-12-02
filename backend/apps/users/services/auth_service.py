@@ -15,6 +15,8 @@ from django.conf import settings
 from django.core.cache import cache
 from django.db import transaction
 from django.core.exceptions import ValidationError
+from django_otp.oath import TOTP
+from django_otp.plugins.otp_totp.models import TOTPDevice
 from ..models import Profile, User
 
 
@@ -75,6 +77,9 @@ class AuthService:
         # Send emails
         AuthService._send_welcome_email(user)
         AuthService.send_verification_email(user)
+
+        # Setup OTP device
+        AuthService.setup_otp_device(user)
 
         return user, profile
 
@@ -261,3 +266,56 @@ class AuthService:
                 )
 
         return recommendations
+
+    @staticmethod
+    def setup_otp_device(user: User) -> TOTPDevice:
+        """
+        Setup a TOTP device for the user.
+
+        Args:
+            user: User instance
+
+        Returns:
+            TOTPDevice: Configured TOTP device
+        """
+        device = TOTPDevice.objects.create(user=user, name="default")
+        return device
+
+    @staticmethod
+    def verify_otp(user: User, token: str) -> bool:
+        """
+        Verify the provided OTP token.
+
+        Args:
+            user: User instance
+            token: OTP token
+
+        Returns:
+            bool: True if verified, False otherwise
+        """
+        try:
+            device = TOTPDevice.objects.get(user=user, name="default")
+            return device.verify_token(token)
+        except TOTPDevice.DoesNotExist:
+            return False
+
+    @staticmethod
+    def login_user(email: str, password: str, token: str) -> Union[Dict[str, Any], None]:
+        """
+        Authenticate user with email, password, and OTP token.
+
+        Args:
+            email: User email
+            password: User password
+            token: OTP token
+
+        Returns:
+            Union[Dict[str, Any], None]: Authentication tokens if successful, None otherwise
+        """
+        try:
+            user = User.objects.get(email=email)
+            if user.check_password(password) and AuthService.verify_otp(user, token):
+                return AuthService.get_tokens_for_user(user)
+        except User.DoesNotExist:
+            pass
+        return None

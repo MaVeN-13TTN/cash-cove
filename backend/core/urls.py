@@ -10,17 +10,17 @@ from drf_spectacular.views import SpectacularAPIView, SpectacularSwaggerView, Sp
 
 urlpatterns = [
     path("admin/", admin.site.urls),
-    path("api/users/", include("apps.users.api.urls")),
-    path("api/budgets/", include("apps.budgets.api.urls")),
-    path("api/expenses/", include("apps.expenses.api.urls")),
-    path("api/analytics/", include("apps.analytics.api.urls")),
-    path("api/notifications/", include("apps.notifications.api.urls")),
-    path("api/shared-expenses/", include("apps.shared_expenses.api.urls")),
+    path("api/v1/users/", include("apps.users.api.urls")),
+    path("api/v1/budgets/", include("apps.budgets.api.urls")),
+    path("api/v1/expenses/", include("apps.expenses.api.urls")),
+    path("api/v1/analytics/", include("apps.analytics.api.urls")),
+    path("api/v1/notifications/", include("apps.notifications.api.urls")),
+    path("api/v1/shared-expenses/", include("apps.shared_expenses.api.urls")),
     
     # API Schema and Documentation
-    path("api/schema/", SpectacularAPIView.as_view(), name="schema"),
-    path("api/docs/", SpectacularSwaggerView.as_view(url_name="schema"), name="swagger-ui"),
-    path("api/redoc/", SpectacularRedocView.as_view(url_name="schema"), name="redoc"),
+    path("api/v1/schema/", SpectacularAPIView.as_view(), name="schema"),
+    path("api/v1/docs/", SpectacularSwaggerView.as_view(url_name="schema"), name="swagger-ui"),
+    path("api/v1/redoc/", SpectacularRedocView.as_view(url_name="schema"), name="redoc"),
 ]
 
 # Add debug toolbar URLs in development
