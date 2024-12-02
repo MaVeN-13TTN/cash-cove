@@ -1,54 +1,41 @@
 """
-Celery configuration for the budget tracker project.
+Celery configuration for budget tracker project.
 """
 
 import os
 from celery import Celery
-from django.conf import settings
 from celery.schedules import crontab
+from django.conf import settings
 
-# Set the default Django settings module
-os.environ.setdefault("DJANGO_SETTINGS_MODULE", "core.settings.local")
+# Set the default Django settings module for the 'celery' program.
+os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'core.settings.local')
 
-# Create the Celery app
-app = Celery("budget_tracker")
+app = Celery('budget_tracker')
 
-# Namespace for celery settings in Django settings
-app.config_from_object("django.conf:settings", namespace="CELERY")
+# Using a string here means the worker doesn't have to serialize
+# the configuration object to child processes.
+app.config_from_object('django.conf:settings', namespace='CELERY')
 
-# Load tasks from all registered Django apps
-app.autodiscover_tasks(lambda: settings.INSTALLED_APPS)
+# Load task modules from all registered Django app configs.
+app.autodiscover_tasks()
 
-# Configure Celery beat schedule for periodic tasks
+# Configure periodic tasks
 app.conf.beat_schedule = {
-    # Budget related tasks
-    "check-budget-limits": {
-        "task": "apps.budgets.tasks.check_budget_limits",
-        "schedule": 3600.0,  # Run hourly
+    'send-payment-reminders': {
+        'task': 'apps.shared_expenses.tasks.send_payment_reminders',
+        'schedule': crontab(hour=9, minute=0),  # Run daily at 9 AM
     },
-    "check-budget-thresholds": {
-        "task": "apps.notifications.tasks.check_budget_thresholds",
-        "schedule": 3600.0,  # Run hourly
+    'update-expense-statistics': {
+        'task': 'apps.shared_expenses.tasks.update_expense_statistics',
+        'schedule': crontab(minute='*/30'),  # Run every 30 minutes
     },
-    
-    # Notification tasks
-    "send-weekly-summaries": {
-        "task": "apps.notifications.tasks.send_weekly_summaries",
-        "schedule": crontab(hour=8, minute=0, day_of_week=1),  # Monday at 8 AM
-    },
-    "send-expense-reminders": {
-        "task": "apps.notifications.tasks.send_expense_reminders",
-        "schedule": crontab(hour=9, minute=0),  # Daily at 9 AM
+    'clean-cancelled-expenses': {
+        'task': 'apps.shared_expenses.tasks.clean_cancelled_expenses',
+        'schedule': crontab(hour=0, minute=0),  # Run daily at midnight
     },
 }
 
-
 @app.task(bind=True, ignore_result=True)
 def debug_task(self):
-    """
-    Debug task for testing Celery worker.
-
-    Args:
-        self: Task instance
-    """
-    print(f"Request: {self.request!r}")
+    """Debug task to verify Celery is working."""
+    print(f'Request: {self.request!r}')

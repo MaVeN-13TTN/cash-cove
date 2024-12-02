@@ -88,8 +88,11 @@ class SharedExpense(models.Model):
         verbose_name_plural = _("Shared Expenses")
         ordering = ["-created_at"]
         indexes = [
+            models.Index(fields=["creator"]),
+            models.Index(fields=["status"]),
+            models.Index(fields=["created_at"]),
             models.Index(fields=["creator", "status"]),
-            models.Index(fields=["due_date"]),
+            models.Index(fields=["creator", "created_at"]),
         ]
 
     def __str__(self) -> str:
