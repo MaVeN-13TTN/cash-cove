@@ -63,36 +63,34 @@ class StorageUtils {
   }
 
   // Auth specific methods
-  static const _tokenKey = 'auth_token';
-  static const _refreshTokenKey = 'refresh_token';
   static const _userKey = 'user_data';
   static const _rememberMeKey = 'remember_me';
   static const _biometricEnabledKey = 'biometric_enabled';
   static const _savedEmailKey = 'saved_email';
 
-  /// Saves the authentication token
-  static Future<void> saveToken(String token) async {
-    await saveSecure(_tokenKey, token);
+  /// Token-specific storage keys
+  static const String _accessTokenKey = 'access_token';
+  static const String _refreshTokenKey = 'refresh_token';
+
+  /// Saves an authentication token
+  static Future<void> saveToken(String type, String token) async {
+    await saveSecure(type == 'access_token' ? _accessTokenKey : _refreshTokenKey, token);
   }
 
-  /// Gets the stored authentication token
-  static Future<String?> getToken() async {
-    return await getSecure(_tokenKey);
+  /// Gets the access token
+  static Future<String?> getAccessToken() async {
+    return await getSecure(_accessTokenKey);
   }
 
-  /// Deletes the authentication token
-  static Future<void> deleteToken() async {
-    await deleteSecure(_tokenKey);
-  }
-
-  /// Saves the refresh token
-  static Future<void> saveRefreshToken(String token) async {
-    await saveSecure(_refreshTokenKey, token);
-  }
-
-  /// Gets the stored refresh token
+  /// Gets the refresh token
   static Future<String?> getRefreshToken() async {
     return await getSecure(_refreshTokenKey);
+  }
+
+  /// Clears authentication tokens
+  static Future<void> clearTokens() async {
+    await deleteSecure(_accessTokenKey);
+    await deleteSecure(_refreshTokenKey);
   }
 
   /// Saves the user data
@@ -144,8 +142,6 @@ class StorageUtils {
 
   /// Clears all authentication related data
   static Future<void> clearAuthData() async {
-    await deleteSecure(_tokenKey);
-    await deleteSecure(_refreshTokenKey);
     await deleteSecure(_userKey);
     // Don't clear remember me preference and saved email
   }
@@ -161,12 +157,14 @@ class StorageUtils {
   }
 
   // Theme
-  static Future<void> saveThemeMode(String themeMode) async {
-    await saveSecure('app_theme', themeMode);
+  static const _themeKey = 'theme';
+
+  static Future<void> saveTheme(String theme) async {
+    await saveSecure(_themeKey, theme);
   }
 
   static Future<String?> getThemeMode() async {
-    return await getSecure('app_theme');
+    return await getSecure(_themeKey);
   }
 
   // Clear All Data
@@ -185,5 +183,15 @@ class StorageUtils {
 
   static Future<void> deleteData(String key) async {
     await deleteSecure(key);
+  }
+
+  /// Saves the access token securely
+  static Future<void> saveAccessToken(String token) async {
+    await saveSecure('access_token', token);
+  }
+
+  /// Saves the refresh token securely
+  static Future<void> saveRefreshToken(String token) async {
+    await saveSecure('refresh_token', token);
   }
 }
