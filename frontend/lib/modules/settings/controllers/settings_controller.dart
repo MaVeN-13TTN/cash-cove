@@ -35,8 +35,8 @@ class SettingsController extends GetxController {
   RxInt get budgetWarningThreshold => _settingsService.budgetWarningThreshold;
 
   // User info
-  String get userEmail => _authService.currentUser?.email ?? '';
-  String get userName => _authService.currentUser?.displayName ?? '';
+  String get userEmail => _authService.email;
+  String get userName => _authService.displayName;
 
   // Available options
   final List<String> availableCurrencies = ['USD', 'EUR', 'GBP', 'JPY', 'CNY', 'KES'];
@@ -155,9 +155,15 @@ class SettingsController extends GetxController {
   }
 
   Future<void> exportSettings() async {
-    final settings = _settingsService.exportSettings();
+    final exportedSettings = _settingsService.exportSettings();
+    
     // TODO: Implement settings export functionality
     // This could save to a file, share via platform share functionality, etc.
+    Get.snackbar(
+      'Export Settings',
+      'Exported settings: ${exportedSettings.toString()}',
+      snackPosition: SnackPosition.BOTTOM,
+    );
   }
 
   Future<void> importSettings(Map<String, dynamic> settings) async {
@@ -205,20 +211,16 @@ class SettingsController extends GetxController {
     final confirmed = await Get.dialog<bool>(
       AlertDialog(
         title: const Text('Delete Account'),
-        content: const Text(
-          'Are you sure you want to delete your account? This action cannot be undone.',
-        ),
+        content: const Text('Are you sure you want to permanently delete your account? This action cannot be undone.'),
         actions: [
           TextButton(
             onPressed: () => Get.back(result: false),
             child: const Text('Cancel'),
           ),
           TextButton(
-            style: TextButton.styleFrom(
-              foregroundColor: Colors.red,
-            ),
             onPressed: () => Get.back(result: true),
-            child: const Text('Delete'),
+            style: TextButton.styleFrom(foregroundColor: Colors.red),
+            child: const Text('Delete Account'),
           ),
         ],
       ),
@@ -231,7 +233,7 @@ class SettingsController extends GetxController {
       } catch (e) {
         Get.snackbar(
           'Error',
-          'Failed to delete account',
+          'Failed to delete account. Please try again.',
           snackPosition: SnackPosition.BOTTOM,
         );
       }
