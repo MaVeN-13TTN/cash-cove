@@ -9,10 +9,13 @@ class CustomTextField extends StatelessWidget {
   final List<TextInputFormatter>? inputFormatters;
   final bool obscureText;
   final Widget? suffixIcon;
+  final IconData? prefixIcon;
   final bool enabled;
+  final bool readOnly;
   final int? maxLines;
   final void Function(String)? onChanged;
   final void Function(String?)? onSaved;
+  final void Function()? onTap;
 
   const CustomTextField({
     Key? key,
@@ -23,10 +26,13 @@ class CustomTextField extends StatelessWidget {
     this.inputFormatters,
     this.obscureText = false,
     this.suffixIcon,
+    this.prefixIcon,
     this.enabled = true,
+    this.readOnly = false,
     this.maxLines = 1,
     this.onChanged,
     this.onSaved,
+    this.onTap,
   }) : super(key: key);
 
   @override
@@ -38,12 +44,15 @@ class CustomTextField extends StatelessWidget {
       inputFormatters: inputFormatters,
       obscureText: obscureText,
       enabled: enabled,
+      readOnly: readOnly,
       maxLines: maxLines,
       onChanged: onChanged,
       onSaved: onSaved,
+      onTap: onTap,
       decoration: InputDecoration(
         labelText: label,
         suffixIcon: suffixIcon,
+        prefixIcon: prefixIcon != null ? Icon(prefixIcon) : null,
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
         ),

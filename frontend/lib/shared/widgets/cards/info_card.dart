@@ -9,6 +9,7 @@ class InfoCard extends StatelessWidget {
   final Color? backgroundColor;
   final EdgeInsetsGeometry? padding;
   final bool hasBorder;
+  final Widget? content;
 
   const InfoCard({
     super.key,
@@ -20,15 +21,16 @@ class InfoCard extends StatelessWidget {
     this.backgroundColor,
     this.padding,
     this.hasBorder = false,
+    this.content,
   });
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
 
-    Widget content = Padding(
+    Widget cardContent = Padding(
       padding: padding ?? const EdgeInsets.all(16),
-      child: Row(
+      child: content ?? Row(
         children: [
           if (leading != null) ...[
             leading!,
@@ -78,7 +80,7 @@ class InfoCard extends StatelessWidget {
                 borderRadius: BorderRadius.circular(12),
               )
             : null,
-        child: content,
+        child: cardContent,
       ),
     );
 

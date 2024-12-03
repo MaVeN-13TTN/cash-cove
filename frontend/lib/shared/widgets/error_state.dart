@@ -12,6 +12,30 @@ class ErrorState extends StatelessWidget {
     this.onRetry,
   }) : super(key: key);
 
+  factory ErrorState.fromMessage({
+    Key? key,
+    required String message,
+    VoidCallback? onRetry,
+  }) {
+    return ErrorState(
+      key: key,
+      title: 'Error Occurred',
+      description: message,
+      onRetry: onRetry,
+    );
+  }
+
+  const ErrorState.message({
+    Key? key,
+    required String message,
+    VoidCallback? onRetry,
+  }) : this(
+    key: key,
+    title: 'Error Occurred',
+    description: message,
+    onRetry: onRetry,
+  );
+
   @override
   Widget build(BuildContext context) {
     return Center(

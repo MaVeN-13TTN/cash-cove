@@ -22,11 +22,11 @@ class SocialAuthButton extends StatelessWidget {
     IconData icon;
     switch (provider) {
       case SocialAuthProvider.google:
-        text = 'Continue with Google';
+        text = 'Google';
         icon = Icons.g_mobiledata;
         break;
       case SocialAuthProvider.facebook:
-        text = 'Continue with Facebook';
+        text = 'Facebook';
         icon = Icons.facebook;
         break;
       case SocialAuthProvider.apple:
@@ -38,7 +38,7 @@ class SocialAuthButton extends StatelessWidget {
     return OutlinedButton(
       onPressed: isLoading ? null : onPressed,
       style: OutlinedButton.styleFrom(
-        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
         side: BorderSide(color: theme.dividerColor),
         backgroundColor: theme.colorScheme.surface,
       ),
@@ -55,7 +55,7 @@ class SocialAuthButton extends StatelessWidget {
               mainAxisSize: MainAxisSize.min,
               children: [
                 Icon(icon, size: 24),
-                const SizedBox(width: 12),
+                const SizedBox(width: 8),
                 Text(
                   text,
                   style: theme.textTheme.labelLarge?.copyWith(
