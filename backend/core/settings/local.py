@@ -10,7 +10,9 @@ from .base import *  # noqa
 DEBUG = True
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = config("SECRET_KEY", default="django-insecure-development-key-change-this-in-production")
+SECRET_KEY = config(
+    "SECRET_KEY", default="django-insecure-development-key-change-this-in-production"
+)
 
 # Database
 DATABASES = {
@@ -47,51 +49,41 @@ if "debug_toolbar" not in INSTALLED_APPS:
     ]
 
 # CORS settings
-CORS_ORIGIN_ALLOW_ALL = True  # More permissive for development
+CORS_ORIGIN_ALLOW_ALL = True
 CORS_ALLOW_CREDENTIALS = True
-CORS_ALLOWED_ORIGINS = [
-    "http://localhost:51074",
-    "http://127.0.0.1:51074",
-    "http://0.0.0.0:51074",
-    "http://localhost:3000",
-    "http://127.0.0.1:3000",
-    "http://0.0.0.0:3000",
-    "http://localhost",
-    "http://127.0.0.1",
-    "http://0.0.0.0",
+
+CORS_ALLOW_HEADERS = [
+    "accept",
+    "accept-encoding",
+    "authorization",
+    "content-type",
+    "dnt",
+    "origin",
+    "user-agent",
+    "x-csrftoken",
+    "x-requested-with",
+    "access-control-allow-origin",
+    "access-control-allow-credentials",
+    "access-control-allow-methods",
+    "access-control-allow-headers",
+    "x-ratelimit-limit",
+    "x-ratelimit-remaining",
+    "x-ratelimit-reset",
 ]
 
 CORS_ALLOW_METHODS = [
-    'GET',
-    'POST',
-    'PUT',
-    'PATCH',
-    'DELETE',
-    'OPTIONS'
+    "DELETE",
+    "GET",
+    "OPTIONS",
+    "PATCH",
+    "POST",
+    "PUT",
 ]
 
-CORS_ALLOW_HEADERS = [
-    'accept',
-    'accept-encoding',
-    'authorization',
-    'content-type',
-    'dnt',
-    'origin',
-    'user-agent',
-    'x-csrftoken',
-    'x-requested-with',
-    'access-control-allow-origin',
-    'access-control-allow-methods',
-    'access-control-allow-headers',
-]
+CORS_PREFLIGHT_MAX_AGE = 86400  # 24 hours
 
 # Security settings for development
-CSRF_TRUSTED_ORIGINS = [
-    "http://localhost:51074",
-    "http://127.0.0.1:51074",
-    "http://localhost",
-    "http://127.0.0.1",
-]
+CSRF_TRUSTED_ORIGINS = ["http://localhost:*", "http://127.0.0.1:*"]
 SECURE_SSL_REDIRECT = False
 SESSION_COOKIE_SECURE = False
 CSRF_COOKIE_SECURE = False
@@ -101,7 +93,7 @@ CSRF_COOKIE_SECURE = False
 # CSRF_COOKIE_SECURE = False    # Set to False for local development
 
 # Frontend URL
-FRONTEND_URL = config("FRONTEND_URL", default="http://localhost:3000")
+FRONTEND_URL = config("FRONTEND_URL", default="http://localhost")
 
 # Email backend for development
 EMAIL_BACKEND = "django.core.mail.backends.console.EmailBackend"
@@ -111,7 +103,9 @@ AUTH_PASSWORD_VALIDATORS = []
 
 # Celery Configuration
 CELERY_BROKER_URL = config("CELERY_BROKER_URL", default="redis://localhost:6379/0")
-CELERY_RESULT_BACKEND = config("CELERY_RESULT_BACKEND", default="redis://localhost:6379/0")
+CELERY_RESULT_BACKEND = config(
+    "CELERY_RESULT_BACKEND", default="redis://localhost:6379/0"
+)
 CELERY_TASK_ALWAYS_EAGER = True  # Tasks are executed immediately in development
 
 # Cache settings
@@ -159,7 +153,9 @@ LOGGING = {
 }
 
 # Django REST Framework settings
-if "rest_framework.authentication.SessionAuthentication" not in REST_FRAMEWORK.get("DEFAULT_AUTHENTICATION_CLASSES", []):
+if "rest_framework.authentication.SessionAuthentication" not in REST_FRAMEWORK.get(
+    "DEFAULT_AUTHENTICATION_CLASSES", []
+):
     REST_FRAMEWORK["DEFAULT_AUTHENTICATION_CLASSES"] += (
         "rest_framework.authentication.SessionAuthentication",
     )
@@ -182,3 +178,11 @@ MEDIA_ROOT = os.path.join(BASE_DIR, "media")
 # Additional development-specific settings
 ALLOWED_HOSTS = ["localhost", "127.0.0.1", "0.0.0.0"]
 DEBUG_PROPAGATE_EXCEPTIONS = True
+
+# Ensure CORS middleware is first
+MIDDLEWARE = [
+    "corsheaders.middleware.CorsMiddleware",
+    "django.middleware.common.CommonMiddleware",
+] + MIDDLEWARE
+
+APPEND_SLASH = False
