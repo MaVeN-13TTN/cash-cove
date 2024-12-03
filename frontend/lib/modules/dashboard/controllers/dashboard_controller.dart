@@ -1,9 +1,9 @@
+import 'package:flutter/material.dart' show DateUtils;
 import 'package:get/get.dart';
 import '../../../data/models/budget/budget_model.dart';
 import '../../../data/models/transaction/transaction_model.dart';
 import '../../../data/repositories/budget_repository.dart';
 import '../../../data/repositories/transaction_repository.dart';
-import '../../../core/utils/date_utils.dart';
 
 class DashboardController extends GetxController {
   final BudgetRepository _budgetRepository;
@@ -31,7 +31,8 @@ class DashboardController extends GetxController {
   double get totalSpent => _totalSpent.value;
   double get totalBudget => _totalBudget.value;
   double get remainingBudget => totalBudget - totalSpent;
-  double get spendingPercentage => totalBudget > 0 ? (totalSpent / totalBudget) * 100 : 0;
+  double get spendingPercentage =>
+      totalBudget > 0 ? (totalSpent / totalBudget) * 100 : 0;
 
   @override
   void onInit() {
@@ -55,12 +56,7 @@ class DashboardController extends GetxController {
       );
 
       // Fetch recent transactions
-      final now = DateTime.now();
-      final startDate = now.subtract(const Duration(days: 30));
-      final transactions = await _transactionRepository.getTransactions(
-        startDate: startDate,
-        endDate: now,
-      );
+      final transactions = await _transactionRepository.getTransactions();
       _recentTransactions.assignAll(transactions);
 
       // Calculate total spent
@@ -99,7 +95,9 @@ class DashboardController extends GetxController {
   }
 
   String getSpendingAdvice() {
-    final daysLeft = DateUtils.getDaysLeft();
+    final daysLeft =
+        DateUtils.getDaysInMonth(DateTime.now().year, DateTime.now().month) -
+            DateTime.now().day;
     final dailyBudget = remainingBudget / daysLeft;
 
     if (remainingBudget <= 0) {

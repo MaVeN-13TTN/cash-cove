@@ -19,8 +19,8 @@ class RecentTransactionsList extends StatelessWidget {
 
       if (transactions.isEmpty) {
         return const EmptyState(
-          message: 'No recent transactions',
-          suggestion: 'Add a transaction to see it here',
+          title: 'No Recent Transactions',
+          description: 'Add a transaction to see it here',
         );
       }
 
@@ -114,7 +114,6 @@ class _TransactionItem extends StatelessWidget {
   }
 
   void _onTransactionTap(BuildContext context) {
-    // TODO: Navigate to transaction details
     Get.toNamed('/transactions/${transaction.id}');
   }
 }

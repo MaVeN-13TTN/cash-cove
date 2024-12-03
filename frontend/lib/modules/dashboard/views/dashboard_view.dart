@@ -29,7 +29,7 @@ class DashboardView extends GetView<DashboardController> {
         }
 
         if (controller.error != null) {
-          return ErrorState(
+          return ErrorState.message(
             message: controller.error!,
             onRetry: controller.refreshDashboard,
           );
@@ -117,7 +117,7 @@ class DashboardView extends GetView<DashboardController> {
         width: 100,
         padding: const EdgeInsets.all(12),
         decoration: BoxDecoration(
-          color: Theme.of(context).colorScheme.surfaceVariant,
+          color: Theme.of(context).colorScheme.surfaceContainerHighest,
           borderRadius: BorderRadius.circular(12),
         ),
         child: Column(
