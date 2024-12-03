@@ -1,42 +1,42 @@
 /// Enums for shared expense types and statuses
 enum SplitMethod {
-  EQUAL,
-  PERCENTAGE,
-  CUSTOM,
-  SHARES;
+  equal,
+  percentage,
+  custom,
+  shares;
 
   String get displayName {
     switch (this) {
-      case SplitMethod.EQUAL:
+      case SplitMethod.equal:
         return 'Split Equally';
-      case SplitMethod.PERCENTAGE:
+      case SplitMethod.percentage:
         return 'Split by Percentage';
-      case SplitMethod.CUSTOM:
+      case SplitMethod.custom:
         return 'Custom Split';
-      case SplitMethod.SHARES:
+      case SplitMethod.shares:
         return 'Split by Shares';
     }
   }
 }
 
 enum SharedExpenseStatus {
-  PENDING,
-  ACTIVE,
-  SETTLED,
-  CANCELLED,
-  DISPUTED;
+  pending,
+  active,
+  settled,
+  cancelled,
+  disputed;
 
   String get displayName {
     switch (this) {
-      case SharedExpenseStatus.PENDING:
+      case SharedExpenseStatus.pending:
         return 'Pending';
-      case SharedExpenseStatus.ACTIVE:
+      case SharedExpenseStatus.active:
         return 'Active';
-      case SharedExpenseStatus.SETTLED:
+      case SharedExpenseStatus.settled:
         return 'Settled';
-      case SharedExpenseStatus.CANCELLED:
+      case SharedExpenseStatus.cancelled:
         return 'Cancelled';
-      case SharedExpenseStatus.DISPUTED:
+      case SharedExpenseStatus.disputed:
         return 'Disputed';
     }
   }

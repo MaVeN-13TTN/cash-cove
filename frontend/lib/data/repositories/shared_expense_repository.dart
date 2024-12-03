@@ -117,10 +117,10 @@ class SharedExpenseRepository {
       if (groupId != null && expense.groupId != groupId) {
         return false;
       }
-      if (startDate != null && expense.date.isBefore(startDate)) {
+      if (startDate != null && expense.createdAt.isBefore(startDate)) {
         return false;
       }
-      if (endDate != null && expense.date.isAfter(endDate)) {
+      if (endDate != null && expense.createdAt.isAfter(endDate)) {
         return false;
       }
       return true;

@@ -31,11 +31,11 @@ class SharedExpenseModel {
   double get remainingAmount => amount - totalPaid;
 
   /// Computed property to check if the expense is fully settled
-  bool get isSettled => status == SharedExpenseStatus.SETTLED;
+  bool get isSettled => status == SharedExpenseStatus.settled;
 
   /// Computed property to check if the expense can be edited
-  bool get canEdit => status != SharedExpenseStatus.SETTLED && 
-                      status != SharedExpenseStatus.CANCELLED;
+  bool get canEdit => status != SharedExpenseStatus.settled && 
+                      status != SharedExpenseStatus.cancelled;
 
   const SharedExpenseModel({
     required this.id,
