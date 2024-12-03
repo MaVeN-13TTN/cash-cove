@@ -14,7 +14,7 @@ class BudgetSummaryCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return InfoCard(
       title: 'Budget Summary',
-      child: Column(
+      content: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           _buildProgressIndicator(context),
@@ -49,7 +49,7 @@ class BudgetSummaryCard extends StatelessWidget {
         const SizedBox(height: 8),
         LinearProgressIndicator(
           value: controller.spendingPercentage / 100,
-          backgroundColor: Theme.of(context).colorScheme.surfaceVariant,
+          backgroundColor: Theme.of(context).colorScheme.surfaceContainerHighest,
           valueColor: AlwaysStoppedAnimation<Color>(
             _getProgressColor(context),
           ),
