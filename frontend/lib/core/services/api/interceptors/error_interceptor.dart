@@ -1,83 +1,103 @@
 import 'package:dio/dio.dart';
-import '../../../utils/logger_utils.dart';
-import '../exceptions/api_exceptions.dart';
+import '../../auth/auth_service.dart';
+import '../../../widgets/dialogs/dialog_service.dart';
+
+class ErrorCodes {
+  static const int authError = 1000;
+  static const int validationError = 2000;
+  static const int notFound = 3000;
+  static const int permissionDenied = 4000;
+  static const int serverError = 5000;
+}
 
 class ErrorInterceptor extends Interceptor {
+  final AuthService _authService;
+  final DialogService _dialogService;
+
+  ErrorInterceptor({
+    required AuthService authService, 
+    required DialogService dialogService,
+  }) : _authService = authService, 
+       _dialogService = dialogService;
+
   @override
   void onError(DioException err, ErrorInterceptorHandler handler) {
-    LoggerUtils.error(
-      'API Error: ${err.requestOptions.path}',
-      err.response?.data ?? err.message,
-    );
-
-    switch (err.type) {
-      case DioExceptionType.connectionTimeout:
-      case DioExceptionType.sendTimeout:
-      case DioExceptionType.receiveTimeout:
-        throw ApiTimeoutException(err.requestOptions);
-
-      case DioExceptionType.badResponse:
-        switch (err.response?.statusCode) {
-          case 400:
-            throw ApiBadRequestException(
-              requestOptions: err.requestOptions,
-              message: err.response?.data?['message'] ?? 'Bad request',
-            );
-          case 401:
-            throw ApiUnauthorizedException(
-              requestOptions: err.requestOptions,
-              message: err.response?.data?['message'] ?? 'Unauthorized',
-            );
-          case 403:
-            throw ApiForbiddenException(
-              requestOptions: err.requestOptions,
-              message: err.response?.data?['message'] ?? 'Forbidden',
-            );
-          case 404:
-            throw ApiNotFoundException(
-              requestOptions: err.requestOptions,
-              message: err.response?.data?['message'] ?? 'Not found',
-            );
-          case 409:
-            throw ApiConflictException(
-              requestOptions: err.requestOptions,
-              message: err.response?.data?['message'] ?? 'Conflict',
-            );
-          case 422:
-            throw ApiUnprocessableEntityException(
-              requestOptions: err.requestOptions,
-              message: err.response?.data?['message'] ?? 'Unprocessable Entity',
-            );
-          case 500:
-            throw ApiServerException(
-              requestOptions: err.requestOptions,
-              message: err.response?.data?['message'] ?? 'Internal server error',
-            );
-          default:
-            throw ApiException(
-              requestOptions: err.requestOptions,
-              message: err.response?.data?['message'] ?? 'Unknown error occurred',
-            );
-        }
-
-      case DioExceptionType.cancel:
-        throw ApiCancelledException(err.requestOptions);
-
-      case DioExceptionType.unknown:
-        if (err.error != null &&
-            err.error.toString().contains('SocketException')) {
-          throw ApiNoInternetException(err.requestOptions);
-        }
-        throw ApiException(
-          requestOptions: err.requestOptions,
-          message: err.response?.data?['message'] ?? 'Unknown error occurred',
-        );
-
-      default:
-        throw ApiException(
-          requestOptions: err.requestOptions,
-          message: err.response?.data?['message'] ?? 'Unknown error occurred',
-        );
+    if (err.response?.data != null && err.response?.data['error'] != null) {
+      final errorData = err.response?.data['error'];
+      final errorCode = errorData['code'];
+      
+      switch (errorCode) {
+        case ErrorCodes.authError:
+          _handleAuthError(err);
+          break;
+        case ErrorCodes.validationError:
+          _handleValidationError(err, errorData['details']);
+          break;
+        case ErrorCodes.notFound:
+          _handleNotFoundError(err);
+          break;
+        case ErrorCodes.permissionDenied:
+          _handlePermissionError(err);
+          break;
+        case ErrorCodes.serverError:
+          _handleServerError(err);
+          break;
+        default:
+          _handleUnknownError(err);
+      }
     }
+    
+    handler.next(err);
+  }
+
+  void _handleAuthError(DioException err) {
+    _authService.handleAuthError();
+  }
+
+  void _handleValidationError(DioException err, Map<String, dynamic> details) {
+    _dialogService.showError(
+      title: 'Validation Error',
+      message: _formatValidationErrors(details),
+    );
+  }
+
+  void _handleNotFoundError(DioException err) {
+    _dialogService.showError(
+      title: 'Not Found',
+      message: 'The requested resource was not found.',
+    );
+  }
+
+  void _handlePermissionError(DioException err) {
+    _dialogService.showError(
+      title: 'Permission Denied',
+      message: 'You do not have permission to perform this action.',
+    );
+  }
+
+  void _handleServerError(DioException err) {
+    _dialogService.showError(
+      title: 'Server Error',
+      message: 'An unexpected error occurred. Please try again later.',
+    );
+  }
+
+  void _handleUnknownError(DioException err) {
+    _dialogService.showError(
+      title: 'Error',
+      message: 'An unexpected error occurred. Please try again.',
+    );
+  }
+
+  String _formatValidationErrors(Map<String, dynamic> details) {
+    final buffer = StringBuffer();
+    details.forEach((key, value) {
+      if (value is List) {
+        buffer.writeln('$key: ${value.join(', ')}');
+      } else {
+        buffer.writeln('$key: $value');
+      }
+    });
+    return buffer.toString().trim();
   }
 }

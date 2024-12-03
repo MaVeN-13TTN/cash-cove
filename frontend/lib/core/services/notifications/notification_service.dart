@@ -4,6 +4,7 @@ import 'package:web_socket_channel/web_socket_channel.dart';
 import '../../../data/models/notification/notification_model.dart';
 import '../api/api_client.dart';
 import '../auth/token_manager.dart';
+import '../../utils/logger_utils.dart';
 
 class NotificationService extends GetxService {
   static NotificationService get to => Get.find();
@@ -35,7 +36,7 @@ class NotificationService extends GetxService {
   }
 
   void _initWebSocket() async {
-    final token = await _tokenManager.getToken();
+    final token = await _tokenManager.getAccessToken();
     if (token == null) return;
 
     final wsUrl = Uri.parse('ws://your-backend-url/ws/notifications/')
@@ -48,7 +49,7 @@ class NotificationService extends GetxService {
 
     _subscription = _channel?.stream.listen(
       (message) => _handleWebSocketMessage(message),
-      onError: (error) => print('WebSocket Error: $error'),
+      onError: (error) => LoggerUtils.error('WebSocket Error', error),
       onDone: () => _reconnectWebSocket(),
     );
   }
@@ -68,7 +69,7 @@ class NotificationService extends GetxService {
       }
       _showNotification(notification);
     } catch (e) {
-      print('Error handling notification: $e');
+      LoggerUtils.error('Error handling notification', e);
     }
   }
 
@@ -111,7 +112,7 @@ class NotificationService extends GetxService {
       // Update unread count
       unreadCount.value = notifications.where((n) => !n.isRead).length;
     } catch (e) {
-      print('Error fetching notifications: $e');
+      LoggerUtils.error('Error fetching notifications', e);
       rethrow;
     }
   }
@@ -138,7 +139,7 @@ class NotificationService extends GetxService {
         unreadCount.value--;
       }
     } catch (e) {
-      print('Error marking notification as read: $e');
+      LoggerUtils.error('Error marking notification as read', e);
       rethrow;
     }
   }
@@ -162,7 +163,7 @@ class NotificationService extends GetxService {
       
       unreadCount.value = 0;
     } catch (e) {
-      print('Error marking all notifications as read: $e');
+      LoggerUtils.error('Error marking all notifications as read', e);
       rethrow;
     }
   }

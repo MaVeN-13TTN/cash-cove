@@ -143,4 +143,13 @@ class OfflineQueueService {
     await _subscription?.cancel();
     await _box.close();
   }
+
+  /// Clears all pending requests from the queue
+  Future<void> clear() async {
+    final keys = _box.keys.toList();
+    for (final key in keys) {
+      await _box.delete(key);
+    }
+    LoggerUtils.info('Offline queue cleared: ${keys.length} requests removed');
+  }
 }

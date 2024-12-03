@@ -1,60 +1,176 @@
-import 'package:dio/dio.dart' as dio;
+import 'package:dio/dio.dart' as dio_client;
 import 'package:get/get.dart';
+import 'package:flutter_cache_manager/flutter_cache_manager.dart';
+import 'package:hive/hive.dart';
 import '../storage/secure_storage.dart';
 import '../../utils/logger_utils.dart';
 import 'interceptors/auth_interceptor.dart';
 import 'interceptors/error_interceptor.dart';
 import 'interceptors/cache_interceptor.dart';
 import 'interceptors/rate_limit_interceptor.dart';
-import 'offline_queue_service.dart';
 import 'request_manager.dart';
 import '../auth/token_manager.dart';
-import 'package:meta/meta.dart';
+import '../auth/auth_service.dart';
+import '../../widgets/dialogs/dialog_service.dart';
+import 'offline_queue_service.dart';
 
 class ApiClient extends GetxService {
-  late dio.Dio _dio;
+  late dio_client.Dio _dio;
+  // Public getter for Dio instance
+  dio_client.Dio get dio => _dio;
+
   late final OfflineQueueService _offlineQueue;
   late RequestManager _requestManager;
-  final SecureStorage _storage;
+  final DefaultCacheManager _cacheManager;
   final _metrics = <String, List<int>>{};
   static ApiClient? _instance;
 
-  ApiClient._({required SecureStorage storage}) : _storage = storage {
-    _dio = dio.Dio(
-      dio.BaseOptions(
+  ApiClient._({
+    required SecureStorage storage, 
+    required DefaultCacheManager cacheManager,
+    required Box<String> offlineRequestBox,
+  }) : 
+    _cacheManager = cacheManager {
+    _dio = dio_client.Dio(
+      dio_client.BaseOptions(
         headers: {
           'Content-Type': 'application/json',
           'Accept': 'application/json',
         },
+        validateStatus: (status) {
+          return status! < 500;
+        },
+        receiveDataWhenStatusError: true,
+        extra: {
+          'withCredentials': true,
+        },
       ),
     );
-    _requestManager = RequestManager(dio: _dio);
-  }
 
-  static ApiClient get instance {
-    if (_instance == null) {
-      throw StateError('ApiClient must be initialized first. Call ApiClient.initialize()');
-    }
-    return _instance!;
+    // Initialize request manager
+    _requestManager = RequestManager(dio: _dio);
+    
+    // Initialize offline queue
+    _offlineQueue = OfflineQueueService(
+      dio: _dio,
+      box: offlineRequestBox,
+    );
   }
 
   static Future<ApiClient> initialize({
     required String baseUrl,
     required TokenManager tokenManager,
-    dio.Dio? testDio,
+    dio_client.Dio? testDio,
   }) async {
     if (_instance == null) {
       final storage = await SecureStorage.initialize();
+      final cacheManager = DefaultCacheManager();
+      final authService = Get.find<AuthService>();
+      final dialogService = Get.find<DialogService>();
+      
+      // Open Hive box for offline requests
+      final offlineRequestBox = await Hive.openBox<String>('offline_requests');
+
       _instance = ApiClient._(
-        storage: storage,
+        storage: storage, 
+        cacheManager: cacheManager,
+        offlineRequestBox: offlineRequestBox,
       );
-      await _instance!._initOfflineQueue();
-      if (testDio == null) {
-        _instance!._setupInterceptors();
-      }
+
+      // Configure base URL and timeout
       _instance!._dio.options.baseUrl = baseUrl;
-      Get.put(_instance!);
+      _instance!._dio.options.connectTimeout = const Duration(seconds: 30);
+      _instance!._dio.options.receiveTimeout = const Duration(seconds: 30);
+      _instance!._dio.options.sendTimeout = const Duration(seconds: 30);
+
+      // Update CORS headers
+      _instance!._dio.options.headers.addAll({
+        'Access-Control-Allow-Origin': 'http://127.0.0.1:8000',
+        'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
+        'Access-Control-Allow-Headers': 'Origin, Content-Type, Accept, Authorization, X-Request-With',
+        'Access-Control-Allow-Credentials': 'true',
+      });
+
+      // Add more robust error logging
+      _instance!._dio.interceptors.add(
+        dio_client.InterceptorsWrapper(
+          onError: (dio_client.DioException e, dio_client.ErrorInterceptorHandler handler) {
+            LoggerUtils.error(
+              'API Request Error', 
+              e, 
+              e.stackTrace,
+            );
+            handler.next(e);
+          },
+        )
+      );
+
+      // Add interceptors in the correct order
+      _instance!._dio.interceptors.addAll([
+        AuthInterceptor(storage),
+        ErrorInterceptor(
+          authService: authService,
+          dialogService: dialogService,
+        ),
+        CacheInterceptor(
+          cacheManager: cacheManager,
+          maxAge: const Duration(hours: 1),
+          cacheableMethods: const ['GET'],
+        ),
+        RateLimitInterceptor(),
+      ]);
+
+      // Add CORS interceptor
+      _instance!._dio.interceptors.add(
+        dio_client.InterceptorsWrapper(
+          onRequest: (options, handler) {
+            // Let the server handle CORS headers
+            return handler.next(options);
+          },
+          onResponse: (response, handler) {
+            return handler.next(response);
+          },
+          onError: (error, handler) async {
+            if (error.response?.statusCode == 401) {
+              // Handle unauthorized error
+              final refreshToken = await storage.getRefreshToken();
+              if (refreshToken != null) {
+                try {
+                  final response = await _instance!._dio.post(
+                    '/auth/token/refresh/',
+                    data: {'refresh': refreshToken},
+                  );
+
+                  if (response.statusCode == 200) {
+                    await storage.setToken(response.data['access']);
+                    error.requestOptions.headers['Authorization'] = 'Bearer ${response.data['access']}';
+                    
+                    // Retry the original request
+                    final opts = dio_client.Options(
+                      method: error.requestOptions.method,
+                      headers: error.requestOptions.headers,
+                    );
+                    final clonedRequest = await _instance!._dio.request(
+                      error.requestOptions.path,
+                      options: opts,
+                      data: error.requestOptions.data,
+                      queryParameters: error.requestOptions.queryParameters,
+                    );
+                    
+                    return handler.resolve(clonedRequest);
+                  }
+                } catch (e) {
+                  // Refresh token failed, proceed with error
+                  return handler.next(error);
+                }
+              }
+            }
+            return handler.next(error);
+          },
+        ),
+      );
     }
+
     return _instance!;
   }
 
@@ -63,10 +179,10 @@ class ApiClient extends GetxService {
   }
 
   Future<void> setRequestInterceptor(
-    dio.InterceptorSendCallback onRequest,
+    dio_client.InterceptorSendCallback onRequest,
   ) async {
     _dio.interceptors.add(
-      dio.InterceptorsWrapper(onRequest: onRequest),
+      dio_client.InterceptorsWrapper(onRequest: onRequest),
     );
   }
 
@@ -102,35 +218,40 @@ class ApiClient extends GetxService {
         };
   }
 
-  Future<void> _initOfflineQueue() async {
-    _offlineQueue = await OfflineQueueService.init(_dio);
+  Future<void> setDioForTesting(dio_client.Dio dio) async {
+    _dio = dio;
   }
 
-  void _setupInterceptors() {
-    // Add logging interceptor in debug mode
-    _dio.interceptors.add(dio.LogInterceptor(
-      requestBody: true,
-      responseBody: true,
-      logPrint: (object) => LoggerUtils.debug('API: $object'),
-    ));
+  void addInterceptor(dio_client.Interceptor interceptor) {
+    _dio.interceptors.add(interceptor);
+  }
 
-    // Add auth interceptor
-    _dio.interceptors.add(AuthInterceptor(_storage));
+  void removeInterceptor(dio_client.Interceptor interceptor) {
+    _dio.interceptors.remove(interceptor);
+  }
 
-    // Add cache interceptor
-    _dio.interceptors.add(CacheInterceptor(
-      maxAge: const Duration(minutes: 30),
-      cacheableMethods: const ['GET'],
-    ));
+  void clearInterceptors() {
+    _dio.interceptors.clear();
+  }
 
-    // Add rate limit interceptor
-    _dio.interceptors.add(RateLimitInterceptor(
-      interval: const Duration(seconds: 1),
-      maxRequests: 10,
-    ));
+  Map<String, List<int>> get metrics => _metrics;
 
-    // Add error interceptor
-    _dio.interceptors.add(ErrorInterceptor());
+  Future<void> clearCache() async {
+    await _cacheManager.emptyCache();
+  }
+
+  Future<void> processOfflineQueue() async {
+    await _offlineQueue.processQueue();
+  }
+
+  Future<void> clearOfflineQueue() async {
+    await _offlineQueue.clear();
+  }
+
+  Future<void> dispose() async {
+    _dio.close();
+    await _offlineQueue.dispose();
+    await _cacheManager.emptyCache();
   }
 
   // Track request timing for metrics
@@ -157,8 +278,8 @@ class ApiClient extends GetxService {
   Future<T> get<T>(
     String path, {
     Map<String, dynamic>? queryParameters,
-    dio.Options? options,
-    dio.CancelToken? cancelToken,
+    dio_client.Options? options,
+    dio_client.CancelToken? cancelToken,
     bool useCache = true,
   }) async {
     final stopwatch = Stopwatch()..start();
@@ -168,7 +289,7 @@ class ApiClient extends GetxService {
         path,
         queryParameters: queryParameters,
         options: options == null
-            ? dio.Options(extra: {'no-cache': !useCache})
+            ? dio_client.Options(extra: {'no-cache': !useCache})
             : options.copyWith(extra: {
                 'no-cache': !useCache,
                 ...options.extra ?? {},
@@ -179,8 +300,8 @@ class ApiClient extends GetxService {
       _trackRequestTiming(path, stopwatch.elapsedMilliseconds);
       return response.data as T;
     } catch (e) {
-      if (e is dio.DioException &&
-          e.type == dio.DioExceptionType.connectionError) {
+      if (e is dio_client.DioException &&
+          e.type == dio_client.DioExceptionType.connectionError) {
         // Queue request for offline processing
         await _offlineQueue.enqueueRequest(QueuedRequest(
           method: 'GET',
@@ -188,6 +309,7 @@ class ApiClient extends GetxService {
           queryParameters: queryParameters,
           headers: options?.headers,
         ));
+        rethrow;
       }
       LoggerUtils.error('GET request failed: $path', e);
       rethrow;
@@ -199,8 +321,8 @@ class ApiClient extends GetxService {
     String path, {
     dynamic data,
     Map<String, dynamic>? queryParameters,
-    dio.Options? options,
-    dio.CancelToken? cancelToken,
+    dio_client.Options? options,
+    dio_client.CancelToken? cancelToken,
   }) async {
     final stopwatch = Stopwatch()..start();
 
@@ -216,8 +338,8 @@ class ApiClient extends GetxService {
       _trackRequestTiming(path, stopwatch.elapsedMilliseconds);
       return response.data as T;
     } catch (e) {
-      if (e is dio.DioException &&
-          e.type == dio.DioExceptionType.connectionError) {
+      if (e is dio_client.DioException &&
+          e.type == dio_client.DioExceptionType.connectionError) {
         // Queue request for offline processing
         await _offlineQueue.enqueueRequest(QueuedRequest(
           method: 'POST',
@@ -226,6 +348,7 @@ class ApiClient extends GetxService {
           queryParameters: queryParameters,
           headers: options?.headers,
         ));
+        rethrow;
       }
       LoggerUtils.error('POST request failed: $path', e);
       rethrow;
@@ -237,8 +360,8 @@ class ApiClient extends GetxService {
     String path, {
     dynamic data,
     Map<String, dynamic>? queryParameters,
-    dio.Options? options,
-    dio.CancelToken? cancelToken,
+    dio_client.Options? options,
+    dio_client.CancelToken? cancelToken,
   }) async {
     final stopwatch = Stopwatch()..start();
 
@@ -254,8 +377,8 @@ class ApiClient extends GetxService {
       _trackRequestTiming(path, stopwatch.elapsedMilliseconds);
       return response.data as T;
     } catch (e) {
-      if (e is dio.DioException &&
-          e.type == dio.DioExceptionType.connectionError) {
+      if (e is dio_client.DioException &&
+          e.type == dio_client.DioExceptionType.connectionError) {
         // Queue request for offline processing
         await _offlineQueue.enqueueRequest(QueuedRequest(
           method: 'PUT',
@@ -264,6 +387,7 @@ class ApiClient extends GetxService {
           queryParameters: queryParameters,
           headers: options?.headers,
         ));
+        rethrow;
       }
       LoggerUtils.error('PUT request failed: $path', e);
       rethrow;
@@ -275,8 +399,8 @@ class ApiClient extends GetxService {
     String path, {
     dynamic data,
     Map<String, dynamic>? queryParameters,
-    dio.Options? options,
-    dio.CancelToken? cancelToken,
+    dio_client.Options? options,
+    dio_client.CancelToken? cancelToken,
   }) async {
     final stopwatch = Stopwatch()..start();
 
@@ -292,8 +416,8 @@ class ApiClient extends GetxService {
       _trackRequestTiming(path, stopwatch.elapsedMilliseconds);
       return response.data as T;
     } catch (e) {
-      if (e is dio.DioException &&
-          e.type == dio.DioExceptionType.connectionError) {
+      if (e is dio_client.DioException &&
+          e.type == dio_client.DioExceptionType.connectionError) {
         // Queue request for offline processing
         await _offlineQueue.enqueueRequest(QueuedRequest(
           method: 'DELETE',
@@ -302,6 +426,7 @@ class ApiClient extends GetxService {
           queryParameters: queryParameters,
           headers: options?.headers,
         ));
+        rethrow;
       }
       LoggerUtils.error('DELETE request failed: $path', e);
       rethrow;
@@ -313,8 +438,8 @@ class ApiClient extends GetxService {
     String path, {
     dynamic data,
     Map<String, dynamic>? queryParameters,
-    dio.Options? options,
-    dio.CancelToken? cancelToken,
+    dio_client.Options? options,
+    dio_client.CancelToken? cancelToken,
   }) async {
     final stopwatch = Stopwatch()..start();
 
@@ -330,8 +455,8 @@ class ApiClient extends GetxService {
       _trackRequestTiming(path, stopwatch.elapsedMilliseconds);
       return response.data as T;
     } catch (e) {
-      if (e is dio.DioException &&
-          e.type == dio.DioExceptionType.connectionError) {
+      if (e is dio_client.DioException &&
+          e.type == dio_client.DioExceptionType.connectionError) {
         // Queue request for offline processing
         await _offlineQueue.enqueueRequest(QueuedRequest(
           method: 'PATCH',
@@ -340,6 +465,7 @@ class ApiClient extends GetxService {
           queryParameters: queryParameters,
           headers: options?.headers,
         ));
+        rethrow;
       }
       LoggerUtils.error('PATCH request failed: $path', e);
       rethrow;
@@ -351,13 +477,13 @@ class ApiClient extends GetxService {
     String path,
     String filePath, {
     Map<String, dynamic>? data,
-    dio.Options? options,
-    dio.CancelToken? cancelToken,
-    dio.ProgressCallback? onSendProgress,
+    dio_client.Options? options,
+    dio_client.CancelToken? cancelToken,
+    dio_client.ProgressCallback? onSendProgress,
   }) async {
     try {
-      final formData = dio.FormData.fromMap({
-        'file': await dio.MultipartFile.fromFile(filePath),
+      final formData = dio_client.FormData.fromMap({
+        'file': await dio_client.MultipartFile.fromFile(filePath),
         if (data != null) ...data,
       });
 
@@ -380,9 +506,9 @@ class ApiClient extends GetxService {
     String path,
     String savePath, {
     Map<String, dynamic>? queryParameters,
-    dio.Options? options,
-    dio.CancelToken? cancelToken,
-    dio.ProgressCallback? onReceiveProgress,
+    dio_client.Options? options,
+    dio_client.CancelToken? cancelToken,
+    dio_client.ProgressCallback? onReceiveProgress,
   }) async {
     try {
       await _dio.download(
@@ -397,18 +523,5 @@ class ApiClient extends GetxService {
       LoggerUtils.error('File download failed: $path', e);
       rethrow;
     }
-  }
-
-  // Method to set Dio instance for testing purposes
-  @visibleForTesting
-  void setDioForTesting(dio.Dio testDio) {
-    _dio = testDio;
-    _requestManager = RequestManager(dio: _dio);
-  }
-
-  // Dispose resources
-  Future<void> dispose() async {
-    await _offlineQueue.dispose();
-    _dio.close();
   }
 }

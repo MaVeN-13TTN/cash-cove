@@ -29,4 +29,8 @@ class Validators {
     }
     return null;
   }
+
+  // Getters for validators to match the usage in ExpenseForm
+  static String? Function(String?) get requiredValidator => required;
+  static String? Function(String?) get amountValidator => validateAmount;
 }

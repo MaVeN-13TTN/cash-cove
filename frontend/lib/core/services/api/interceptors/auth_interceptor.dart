@@ -12,7 +12,7 @@ class AuthInterceptor extends Interceptor {
     RequestInterceptorHandler handler,
   ) async {
     // Skip auth header for login and register endpoints
-    if (options.path.contains('login') || options.path.contains('register')) {
+    if (options.path.contains('token') || options.path.contains('register')) {
       return handler.next(options);
     }
 
@@ -38,11 +38,11 @@ class AuthInterceptor extends Interceptor {
             final dio = Dio();
             final response = await dio.post(
               '${err.requestOptions.baseUrl}/auth/token/refresh/',
-              data: {'refresh_token': refreshToken},
+              data: {'refresh': refreshToken},
             );
 
             if (response.statusCode == 200) {
-              final newToken = response.data['access_token'];
+              final newToken = response.data['access'];
               await _storage.setToken(newToken);
 
               // Retry the original request with new token
