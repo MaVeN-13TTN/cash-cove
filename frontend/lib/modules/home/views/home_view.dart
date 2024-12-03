@@ -16,11 +16,11 @@ class HomeView extends GetView<HomeController> {
     return Scaffold(
       body: Obx(() => IndexedStack(
         index: controller.currentIndex.value,
-        children: const [
-          DashboardView(),
-          BudgetListView(),
-          ExpenseListView(),
-          AnalyticsView(),
+        children: [
+          const DashboardView(),
+          const BudgetListView(),
+          const ExpenseListView(),
+          const AnalyticsView(),
         ],
       )),
       bottomNavigationBar: Obx(() => CustomBottomNavBar(
