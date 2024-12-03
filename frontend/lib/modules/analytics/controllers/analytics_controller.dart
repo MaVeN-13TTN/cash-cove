@@ -22,6 +22,11 @@ class AnalyticsController extends GetxController {
     fetchAnalytics();
   }
 
+  // Refresh analytics data (for use in tab switching)
+  Future<void> refreshAnalytics() async {
+    await fetchAnalytics();
+  }
+
   Future<void> fetchAnalytics() async {
     try {
       isLoading.value = true;
