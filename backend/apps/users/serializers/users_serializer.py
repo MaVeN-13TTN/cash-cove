@@ -200,8 +200,8 @@ class LoginSerializer(serializers.Serializer):
 class TokenSerializer(serializers.Serializer):
     """Serializer for token authentication."""
 
-    token = serializers.CharField(read_only=True)
-    user = UserSerializer(read_only=True)
+    refresh = serializers.CharField(read_only=True)
+    access = serializers.CharField(read_only=True)
 
     def create(self, validated_data: Dict[str, Any]) -> Dict[str, Any]:
         """Create token for user."""

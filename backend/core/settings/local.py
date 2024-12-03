@@ -47,8 +47,61 @@ if "debug_toolbar" not in INSTALLED_APPS:
     ]
 
 # CORS settings
-CORS_ORIGIN_ALLOW_ALL = True
+CORS_ORIGIN_ALLOW_ALL = True  # More permissive for development
 CORS_ALLOW_CREDENTIALS = True
+CORS_ALLOWED_ORIGINS = [
+    "http://localhost:51074",
+    "http://127.0.0.1:51074",
+    "http://0.0.0.0:51074",
+    "http://localhost:3000",
+    "http://127.0.0.1:3000",
+    "http://0.0.0.0:3000",
+    "http://localhost",
+    "http://127.0.0.1",
+    "http://0.0.0.0",
+]
+
+CORS_ALLOW_METHODS = [
+    'GET',
+    'POST',
+    'PUT',
+    'PATCH',
+    'DELETE',
+    'OPTIONS'
+]
+
+CORS_ALLOW_HEADERS = [
+    'accept',
+    'accept-encoding',
+    'authorization',
+    'content-type',
+    'dnt',
+    'origin',
+    'user-agent',
+    'x-csrftoken',
+    'x-requested-with',
+    'access-control-allow-origin',
+    'access-control-allow-methods',
+    'access-control-allow-headers',
+]
+
+# Security settings for development
+CSRF_TRUSTED_ORIGINS = [
+    "http://localhost:51074",
+    "http://127.0.0.1:51074",
+    "http://localhost",
+    "http://127.0.0.1",
+]
+SECURE_SSL_REDIRECT = False
+SESSION_COOKIE_SECURE = False
+CSRF_COOKIE_SECURE = False
+
+# Session settings
+# SESSION_COOKIE_SECURE = False  # Set to False for local development
+# CSRF_COOKIE_SECURE = False    # Set to False for local development
+
+# Frontend URL
+FRONTEND_URL = config("FRONTEND_URL", default="http://localhost:3000")
 
 # Email backend for development
 EMAIL_BACKEND = "django.core.mail.backends.console.EmailBackend"
@@ -127,5 +180,5 @@ MEDIA_URL = "/media/"
 MEDIA_ROOT = os.path.join(BASE_DIR, "media")
 
 # Additional development-specific settings
-ALLOWED_HOSTS = ["localhost", "127.0.0.1"]
+ALLOWED_HOSTS = ["localhost", "127.0.0.1", "0.0.0.0"]
 DEBUG_PROPAGATE_EXCEPTIONS = True

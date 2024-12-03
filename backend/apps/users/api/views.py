@@ -53,7 +53,7 @@ class UserViewSet(viewsets.ModelViewSet):
 
     def get_permissions(self):
         """Get appropriate permissions."""
-        if self.action in ["create", "reset_password"]:
+        if self.action in ["create", "reset_password", "check_email", "register", "login"]:
             return [AllowAny()]
         return super().get_permissions()
 
@@ -145,6 +145,25 @@ class UserViewSet(viewsets.ModelViewSet):
         return Response(
             {"error": _("Invalid token")}, status=status.HTTP_400_BAD_REQUEST
         )
+
+    @action(detail=False, methods=["get", "post"])
+    def check_email(self, request: Request) -> Response:
+        """Check if email is available."""
+        email = request.GET.get("email") or request.data.get("email")
+        if not email:
+            return Response(
+                {"error": _("Email is required")},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        exists = User.objects.filter(email=email).exists()
+        return Response({"available": exists})
+
+    @action(detail=False, methods=["get"])
+    def profile(self, request: Request) -> Response:
+        """Get user profile."""
+        user = request.user
+        return Response(UserSerializer(user).data)
 
     @action(detail=True, methods=["post"])
     def deactivate(self, request: Request) -> Response:

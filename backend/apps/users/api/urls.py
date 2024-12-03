@@ -2,14 +2,12 @@
 URL configuration for users application.
 """
 
-from django.urls import path, include
-from rest_framework.routers import DefaultRouter
-from .views import UserViewSet, ProfileViewSet
-
-router = DefaultRouter()
-router.register(r"users", UserViewSet, basename="user")
-router.register(r"profiles", ProfileViewSet, basename="profile")
+from django.urls import path
+from .views import UserViewSet
 
 urlpatterns = [
-    path("", include(router.urls)),
+    path("", UserViewSet.as_view({"get": "list"}), name="user-list"),
+    path("profile/", UserViewSet.as_view({"get": "profile"}), name="user-profile"),
+    path("<int:pk>/", UserViewSet.as_view({"get": "retrieve", "put": "update", "delete": "destroy"}), name="user-detail"),
+    path("<int:pk>/deactivate/", UserViewSet.as_view({"post": "deactivate"}), name="user-deactivate"),
 ]

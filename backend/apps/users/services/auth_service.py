@@ -68,14 +68,15 @@ class AuthService:
         user.save()
 
         # Create profile
-        profile = Profile.objects.create(
+        profile, _ = Profile.objects.get_or_create(
             user=user,
-            language=data.get("language", "en"),
-            timezone=data.get("timezone", "UTC"),
+            defaults={
+                "language": data.get("language", "en"),
+                "timezone": data.get("timezone", "UTC"),
+            }
         )
 
         # Send emails
-        AuthService._send_welcome_email(user)
         AuthService.send_verification_email(user)
 
         # Setup OTP device
