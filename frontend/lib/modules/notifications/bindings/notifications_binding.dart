@@ -2,7 +2,7 @@ import 'package:get/get.dart';
 import '../controllers/notifications_controller.dart';
 import '../../../core/services/notifications/notification_service.dart';
 
-class NotificationBinding extends Bindings {
+class NotificationsBinding extends Bindings {
   @override
   void dependencies() {
     // Initialize notification service if not already initialized
@@ -11,6 +11,6 @@ class NotificationBinding extends Bindings {
     }
 
     // Initialize notification controller
-    Get.lazyPut<NotificationController>(() => NotificationController());
+    Get.lazyPut<NotificationsController>(() => NotificationsController());
   }
 }

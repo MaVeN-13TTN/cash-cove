@@ -1,12 +1,16 @@
 import 'package:get/get.dart';
+import '../../../core/utils/logger_utils.dart';
 import '../../../core/services/notifications/notification_service.dart';
 import '../../../data/models/notification/notification_model.dart';
+import '../../../core/services/notifications/web_socket_service.dart';
 
-class NotificationController extends GetxController {
+class NotificationsController extends GetxController {
   final _notificationService = Get.find<NotificationService>();
+  final WebSocketService _webSocketService = WebSocketService();
 
   // Reactive variables
-  RxList<NotificationModel> get notifications => _notificationService.notifications;
+  RxList<NotificationModel> get notifications => 
+      _notificationService.notifications;
   RxInt get unreadCount => _notificationService.unreadCount;
   RxBool isLoading = false.obs;
   RxBool hasError = false.obs;
@@ -14,7 +18,18 @@ class NotificationController extends GetxController {
   @override
   void onInit() {
     super.onInit();
+    _webSocketService.connect('ws://your-backend-url/ws/notifications');
     refreshNotifications();
+  }
+
+  @override
+  void onClose() {
+    _webSocketService.disconnect();
+    super.onClose();
+  }
+
+  void sendMessage(String message) {
+    _webSocketService.sendMessage(message);
   }
 
   Future<void> refreshNotifications() async {
@@ -25,7 +40,7 @@ class NotificationController extends GetxController {
       await _notificationService.fetchNotifications(refresh: true);
     } catch (e) {
       hasError.value = true;
-      print('Error refreshing notifications: $e');
+      LoggerUtils.error('Error refreshing notifications', e);
     } finally {
       isLoading.value = false;
     }
@@ -37,7 +52,7 @@ class NotificationController extends GetxController {
     try {
       await _notificationService.fetchNotifications();
     } catch (e) {
-      print('Error loading more notifications: $e');
+      LoggerUtils.error('Error loading more notifications', e);
     }
   }
 
@@ -45,7 +60,7 @@ class NotificationController extends GetxController {
     try {
       await _notificationService.markAsRead(notificationId);
     } catch (e) {
-      print('Error marking notification as read: $e');
+      LoggerUtils.error('Error marking notification as read', e);
       Get.snackbar(
         'Error',
         'Failed to mark notification as read',
@@ -63,7 +78,7 @@ class NotificationController extends GetxController {
         snackPosition: SnackPosition.BOTTOM,
       );
     } catch (e) {
-      print('Error marking all notifications as read: $e');
+      LoggerUtils.error('Error marking all notifications as read', e);
       Get.snackbar(
         'Error',
         'Failed to mark all notifications as read',

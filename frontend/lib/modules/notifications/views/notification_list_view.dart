@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import '../controllers/notification_controller.dart';
+import '../controllers/notifications_controller.dart';
 import 'widgets/notification_list_item.dart';
 
-class NotificationListView extends GetView<NotificationController> {
+class NotificationListView extends GetView<NotificationsController> {
   const NotificationListView({Key? key}) : super(key: key);
 
   @override
