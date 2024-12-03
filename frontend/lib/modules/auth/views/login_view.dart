@@ -1,10 +1,67 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import '../controllers/login_controller.dart';
+import '../controllers/auth_controller.dart';
 import 'widgets/index.dart';
 
-class LoginView extends GetView<LoginController> {
+class LoginView extends StatefulWidget {
   const LoginView({Key? key}) : super(key: key);
+
+  @override
+  State<LoginView> createState() => _LoginViewState();
+}
+
+class _LoginViewState extends State<LoginView> {
+  final LoginController controller = Get.find<LoginController>();
+
+  Future<void> _handleLogin(BuildContext context) async {
+    // Store both scaffold context and top padding before async operation
+    final scaffoldContext = ScaffoldMessenger.of(context);
+    final topPadding = MediaQuery.of(context).padding.top;
+
+    try {
+      await controller.login();
+      if (!mounted) return;
+
+      // Only show success if the login actually succeeded
+      if (Get.find<AuthController>().isAuthenticated) {
+        scaffoldContext.showSnackBar(
+          SnackBar(
+            content: const Text('Login successful!'),
+            backgroundColor: Colors.green,
+            behavior: SnackBarBehavior.floating,
+            elevation: 0,
+            margin: EdgeInsets.only(
+              top: topPadding + 10,
+              left: 10,
+              right: 10,
+            ),
+          ),
+        );
+      }
+    } catch (e) {
+      if (!mounted) return;
+
+      // Show the actual error from the backend
+      final errorMessage = controller.error.isNotEmpty 
+          ? controller.error 
+          : 'Invalid email or password. Please try again.';
+
+      scaffoldContext.showSnackBar(
+        SnackBar(
+          content: Text(errorMessage),
+          backgroundColor: Colors.red,
+          behavior: SnackBarBehavior.floating,
+          elevation: 0,
+          margin: EdgeInsets.only(
+            top: topPadding + 10,
+            left: 10,
+            right: 10,
+          ),
+        ),
+      );
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -113,7 +170,7 @@ class LoginView extends GetView<LoginController> {
 
                   // Login Button
                   AuthButton(
-                    onPressed: () => controller.login(),
+                    onPressed: () => _handleLogin(context),
                     text: 'Login',
                   ),
                   const SizedBox(height: 30),
