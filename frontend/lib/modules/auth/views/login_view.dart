@@ -71,22 +71,22 @@ class LoginView extends GetView<LoginController> {
                   const SizedBox(height: 20),
 
                   // Password Field
-                  AuthTextField(
-                    controller: controller.passwordController,
-                    labelText: 'Password',
-                    hintText: 'Enter your password',
-                    obscureText: controller.obscurePassword,
-                    prefixIcon: Icons.lock_outline,
-                    validator: controller.validatePassword,
-                    suffixIcon: IconButton(
-                      icon: Icon(
-                        controller.obscurePassword
-                            ? Icons.visibility_off
-                            : Icons.visibility,
-                      ),
-                      onPressed: controller.togglePasswordVisibility,
-                    ),
-                  ),
+                  Obx(() => AuthTextField(
+                        controller: controller.passwordController,
+                        labelText: 'Password',
+                        hintText: 'Enter your password',
+                        obscureText: controller.obscurePassword,
+                        prefixIcon: Icons.lock_outline,
+                        suffixIcon: IconButton(
+                          icon: Icon(
+                            controller.obscurePassword
+                                ? Icons.visibility_outlined
+                                : Icons.visibility_off_outlined,
+                          ),
+                          onPressed: controller.togglePasswordVisibility,
+                        ),
+                        validator: controller.validatePassword,
+                      )),
                   const SizedBox(height: 20),
 
                   // Remember Me and Forgot Password

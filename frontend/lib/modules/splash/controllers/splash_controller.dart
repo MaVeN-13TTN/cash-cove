@@ -1,46 +1,91 @@
+import 'package:flutter/widgets.dart';
 import 'package:get/get.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../../app/constants/storage_constants.dart';
 import '../../../app/config/routes/app_routes.dart';
 import '../../../core/utils/logger_utils.dart';
+import '../../../core/services/storage/secure_storage.dart';
+import '../../../modules/auth/controllers/auth_controller.dart';
 
 class SplashController extends GetxController {
-  final Future<SharedPreferences> _prefsInstance = SharedPreferences.getInstance();
+  final RxBool isInitializing = true.obs;
+  final RxString errorMessage = ''.obs;
 
   @override
   void onInit() {
     super.onInit();
-    _initializeApp();
+    LoggerUtils.debug('SplashController initialized');
+
+    // Ensure initialization happens after widget rendering
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _initializeApp();
+    });
   }
 
   Future<void> _initializeApp() async {
-    await Future.delayed(const Duration(seconds: 2)); // Splash screen duration
-
     try {
-      final SharedPreferences prefs = await _prefsInstance;
+      LoggerUtils.debug('Starting app initialization');
 
-      // Check if user is logged in
-      final String? token = prefs.getString(StorageConstants.accessToken);
-      
-      if (token == null) {
-        // User is not logged in
-        final bool hasSeenOnboarding = prefs.getBool(StorageConstants.hasSeenOnboarding) ?? false;
-        
-        if (!hasSeenOnboarding) {
-          // First time user - show onboarding with option to skip
-          Get.offNamed(AppRoutes.onboarding);
-        } else {
-          // User has seen onboarding - go to login
-          Get.offNamed(AppRoutes.login);
-        }
-      } else {
-        // User is logged in - go to home
-        Get.offNamed(AppRoutes.home);
+      // Get initialized dependencies
+      final SharedPreferences prefs = Get.find<SharedPreferences>();
+      final secureStorage = Get.find<SecureStorage>();
+
+      LoggerUtils.debug('Core dependencies found');
+
+      // Check onboarding status
+      final bool hasSeenOnboarding =
+          prefs.getBool(StorageConstants.hasSeenOnboarding) ?? false;
+      LoggerUtils.debug(
+          'Onboarding status: ${hasSeenOnboarding ? "Completed" : "Not seen"}');
+
+      // First-time user flow
+      if (!hasSeenOnboarding) {
+        await Future.delayed(const Duration(milliseconds: 1500));
+        LoggerUtils.debug('Navigating to onboarding');
+        Get.offAllNamed(AppRoutes.onboarding);
+        return;
       }
-    } catch (e) {
-      // Handle preference initialization error
-      Get.offNamed(AppRoutes.login); // Default to login on error
-      LoggerUtils.error('Error initializing preferences', e);
+
+      // Check authentication status
+      final String? token = await secureStorage.getToken();
+      LoggerUtils.debug(
+          'Access token status: ${token != null ? "Found" : "Not found"}');
+
+      // If token exists, verify authentication
+      if (token != null) {
+        try {
+          final authController = Get.find<AuthController>();
+          final bool isAuthenticated = await authController.checkAuthStatus();
+
+          await Future.delayed(const Duration(milliseconds: 1500));
+
+          if (isAuthenticated) {
+            LoggerUtils.debug('Token verified - routing to home');
+            Get.offAllNamed(AppRoutes.home);
+            return;
+          }
+        } catch (e) {
+          LoggerUtils.error('Error verifying token', e);
+        }
+      }
+
+      // No token, invalid token, or authentication failed
+      // Route to login for returning users
+      await Future.delayed(const Duration(milliseconds: 1500));
+      LoggerUtils.debug('Routing to login');
+      Get.offAllNamed(AppRoutes.login);
+    } catch (e, stackTrace) {
+      LoggerUtils.error('Critical error during initialization', e, stackTrace);
+      errorMessage.value = 'Failed to initialize app. Please restart.';
+      isInitializing.value = false;
+    } finally {
+      isInitializing.value = false;
     }
+  }
+
+  @override
+  void onClose() {
+    LoggerUtils.debug('SplashController closing');
+    super.onClose();
   }
 }

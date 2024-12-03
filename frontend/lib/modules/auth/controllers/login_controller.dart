@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import '../../../core/utils/storage_utils.dart';
 import 'auth_controller.dart';
-import '../../../routes/app_pages.dart';
+import '../../../app/config/routes/app_routes.dart';
 
 class LoginController extends GetxController {
   final AuthController _authController = Get.find<AuthController>();
@@ -148,11 +148,11 @@ class LoginController extends GetxController {
   }
 
   void navigateToSignup() {
-    Get.toNamed(Routes.signup);
+    Get.toNamed(AppRoutes.register);
   }
 
   void navigateToForgotPassword() {
-    Get.toNamed(Routes.forgotPassword);
+    Get.toNamed(AppRoutes.forgotPassword);
   }
 
   @override

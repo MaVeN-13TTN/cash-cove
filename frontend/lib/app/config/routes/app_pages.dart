@@ -18,6 +18,10 @@ import 'app_routes.dart';
 class AppPages {
   AppPages._();
 
+  static const initial = AppRoutes.splash;
+
+  static final routes = pages;
+
   static final pages = [
     GetPage(
       name: AppRoutes.splash,

@@ -1,14 +1,13 @@
 import 'package:get/get.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import '../controllers/splash_controller.dart';
+import '../../../app/config/routes/app_routes.dart';
 
 class SplashBinding extends Bindings {
   @override
   void dependencies() {
-    // Ensure SharedPreferences is available
-    Get.putAsync<SharedPreferences>(() async => await SharedPreferences.getInstance());
-    
-    // Create SplashController
-    Get.lazyPut<SplashController>(() => SplashController());
+    // Only create SplashController if we're on the splash route
+    if (Get.currentRoute == AppRoutes.splash) {
+      Get.put<SplashController>(SplashController());
+    }
   }
 }

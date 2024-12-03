@@ -2,11 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 
+import 'app/config/routes/app_pages.dart';
+
 import 'app/bindings/initial_binding.dart';
 import 'core/services/api/api_client.dart';
 import 'core/services/auth/token_manager.dart';
 import 'core/services/storage/secure_storage.dart';
-import 'routes/app_pages.dart';
 import 'modules/auth/controllers/auth_controller.dart';
 
 const String baseUrl = 'http://127.0.0.1:8000/api/v1';
@@ -30,40 +31,38 @@ void main() async {
   Get.put(secureStorage);
 
   // Initialize TokenManager
-  final tokenManager = await TokenManager.initialize(secureStorage);
+  await Get.putAsync<TokenManager>(
+      () async => await TokenManager.initialize(secureStorage));
 
   // Initialize ApiClient
-  final apiClient = await ApiClient.initialize(
-    baseUrl: baseUrl,  
-    tokenManager: tokenManager,
-  );
-  Get.put(apiClient);
+  await Get.putAsync<ApiClient>(() async => await ApiClient.initialize(
+        baseUrl: baseUrl,
+        tokenManager: Get.find<TokenManager>(),
+      ));
 
   // Initialize AuthController
   Get.put(AuthController(
-    apiClient: apiClient,
+    apiClient: Get.find<ApiClient>(),
   ));
 
   runApp(const MyApp());
 }
 
 class MyApp extends StatelessWidget {
-  const MyApp({super.key});
+  const MyApp({Key? key}) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
-    final authController = Get.find<AuthController>();
-
     return GetMaterialApp(
+      debugShowCheckedModeBanner: false,
       title: 'Budget Tracker',
+      initialRoute: AppPages.initial,
+      initialBinding: InitialBinding(),
+      getPages: AppPages.routes,
       theme: ThemeData(
         primarySwatch: Colors.blue,
         visualDensity: VisualDensity.adaptivePlatformDensity,
       ),
-      initialBinding: InitialBinding(),
-      initialRoute: authController.isAuthenticated ? Routes.home : Routes.login,
-      getPages: AppPages.routes,
-      debugShowCheckedModeBanner: false,
     );
   }
 }

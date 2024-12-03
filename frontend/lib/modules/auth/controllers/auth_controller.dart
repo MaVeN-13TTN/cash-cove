@@ -33,16 +33,21 @@ class AuthController extends GetxController {
     checkAuthStatus();
   }
 
-  Future<void> checkAuthStatus() async {
+  Future<bool> checkAuthStatus() async {
     try {
       final token = await StorageUtils.getToken();
       if (token != null) {
         await getUserProfile();
         await getSecurityStatus();
+        _isAuthenticated.value = true;
+        return true;
       }
+      _isAuthenticated.value = false;
+      return false;
     } catch (e, stackTrace) {
       LoggerUtils.error('Error checking auth status', e, stackTrace);
       _isAuthenticated.value = false;
+      return false;
     }
   }
 

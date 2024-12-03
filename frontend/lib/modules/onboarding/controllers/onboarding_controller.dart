@@ -15,11 +15,11 @@ class OnboardingController extends GetxController {
 
   Future<void> skipOnboarding() async {
     await _prefs.setBool(StorageConstants.hasSeenOnboarding, true);
-    Get.offNamed(AppRoutes.login);
+    Get.offNamed(AppRoutes.register);
   }
 
   Future<void> completeOnboarding() async {
     await _prefs.setBool(StorageConstants.hasSeenOnboarding, true);
-    Get.offNamed(AppRoutes.login);
+    Get.offNamed(AppRoutes.register);
   }
 }

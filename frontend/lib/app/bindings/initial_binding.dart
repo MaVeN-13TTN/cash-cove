@@ -1,48 +1,58 @@
 import 'package:get/get.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
-import '../../core/services/auth/auth_service.dart';
-import '../../core/widgets/dialogs/dialog_service.dart';
 import '../../core/services/storage/secure_storage.dart';
-import '../../modules/auth/controllers/auth_controller.dart';
+import '../../core/services/auth/auth_service.dart';
 import '../../core/services/api/api_client.dart';
 import '../../core/services/auth/token_manager.dart';
+import '../../core/widgets/dialogs/dialog_service.dart';
+import '../../modules/auth/controllers/auth_controller.dart';
 
 class InitialBinding extends Bindings {
   @override
   void dependencies() async {
-    // Initialize Dio
-    final dio = Dio();
-
-    // Initialize SecureStorage
-    final secureStorage = await SecureStorage.initialize();
-    Get.put(secureStorage, permanent: true);
-
-    // Create a GlobalKey for Navigator
+    // Global Navigator Key
     final navigatorKey = GlobalKey<NavigatorState>();
+    Get.put(navigatorKey, permanent: true);
 
-    // Initialize AuthService
-    Get.put(AuthService(dio: dio, storage: secureStorage), permanent: true);
+    // Dio Instance
+    final dio = Dio();
+    Get.put(dio, permanent: true);
 
-    // Initialize DialogService
-    Get.put(DialogService(navigatorKey: navigatorKey), permanent: true);
+    // Core Services Initialization
+    final prefs = await SharedPreferences.getInstance();
+    Get.put<SharedPreferences>(prefs, permanent: true);
 
-    // Initialize TokenManager
+    // Secure Storage
+    final secureStorage = await SecureStorage.initialize();
+    Get.put<SecureStorage>(secureStorage, permanent: true);
+
+    // Token Manager
     final tokenManager = await TokenManager.initialize(secureStorage);
-    Get.put(tokenManager, permanent: true);
+    Get.put<TokenManager>(tokenManager, permanent: true);
 
-    // Initialize ApiClient using its static initialize method
+    // Dialog Service
+    final dialogService = DialogService(navigatorKey: navigatorKey);
+    Get.put<DialogService>(dialogService, permanent: true);
+
+    // Auth Service
+    final authService = AuthService(
+      dio: dio, 
+      storage: secureStorage,
+    );
+    Get.put<AuthService>(authService, permanent: true);
+
+    // API Client
     final apiClient = await ApiClient.initialize(
       baseUrl: 'http://127.0.0.1:8000/api/v1', 
       tokenManager: tokenManager,
     );
-    Get.put(apiClient, permanent: true);
+    Get.put<ApiClient>(apiClient, permanent: true);
 
-    // Initialize AuthController
-    Get.put(
-      AuthController(
-        apiClient: apiClient,
-      ),
+    // Auth Controller
+    Get.put<AuthController>(
+      AuthController(apiClient: apiClient),
       permanent: true,
     );
   }
