@@ -1,33 +1,49 @@
 import 'package:get/get.dart';
+import 'package:dio/dio.dart';
+import 'package:flutter/material.dart';
+import '../../core/services/auth/auth_service.dart';
+import '../../core/widgets/dialogs/dialog_service.dart';
+import '../../core/services/storage/secure_storage.dart';
+import '../../modules/auth/controllers/auth_controller.dart';
+import '../../core/services/api/api_client.dart';
+import '../../core/services/auth/token_manager.dart';
 
 class InitialBinding extends Bindings {
   @override
-  void dependencies() {
-    // Core Services
-    // Get.put(StorageService(), permanent: true);
-    // Get.put(NetworkService(), permanent: true);
-    // Get.put(LoggingService(), permanent: true);
-    // Get.put(AnalyticsService(), permanent: true);
-    // Get.put(LocalizationService(), permanent: true);
-    
-    // App Services
-    // Get.put(AuthService(), permanent: true);
-    // Get.put(ThemeService(), permanent: true);
-    // Get.put(NavigationService(), permanent: true);
-    // Get.put(DialogService(), permanent: true);
-    // Get.put(ToastService(), permanent: true);
-    
-    // Data Services
-    // Get.put(UserService(), permanent: true);
-    // Get.put(BudgetService(), permanent: true);
-    // Get.put(TransactionService(), permanent: true);
-    // Get.put(CategoryService(), permanent: true);
-    // Get.put(ReportService(), permanent: true);
-    
-    // Controllers
-    // Get.put(AppController(), permanent: true);
-    // Get.put(AuthController(), permanent: true);
-    // Get.put(ThemeController(), permanent: true);
-    // Get.put(NavigationController(), permanent: true);
+  void dependencies() async {
+    // Initialize Dio
+    final dio = Dio();
+
+    // Initialize SecureStorage
+    final secureStorage = await SecureStorage.initialize();
+    Get.put(secureStorage, permanent: true);
+
+    // Create a GlobalKey for Navigator
+    final navigatorKey = GlobalKey<NavigatorState>();
+
+    // Initialize AuthService
+    Get.put(AuthService(dio: dio, storage: secureStorage), permanent: true);
+
+    // Initialize DialogService
+    Get.put(DialogService(navigatorKey: navigatorKey), permanent: true);
+
+    // Initialize TokenManager
+    final tokenManager = await TokenManager.initialize(secureStorage);
+    Get.put(tokenManager, permanent: true);
+
+    // Initialize ApiClient using its static initialize method
+    final apiClient = await ApiClient.initialize(
+      baseUrl: 'http://127.0.0.1:8000/api/v1', 
+      tokenManager: tokenManager,
+    );
+    Get.put(apiClient, permanent: true);
+
+    // Initialize AuthController
+    Get.put(
+      AuthController(
+        apiClient: apiClient,
+      ),
+      permanent: true,
+    );
   }
 }

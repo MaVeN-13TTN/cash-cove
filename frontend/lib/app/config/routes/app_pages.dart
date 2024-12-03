@@ -3,6 +3,16 @@ import '../../../modules/splash/screens/splash_screen.dart';
 import '../../../modules/splash/bindings/splash_binding.dart';
 import '../../../modules/onboarding/screens/onboarding_screen.dart';
 import '../../../modules/onboarding/bindings/onboarding_binding.dart';
+import '../../../modules/auth/views/login_view.dart';
+import '../../../modules/auth/views/signup_view.dart';
+import '../../../modules/auth/views/forgot_password_view.dart';
+import '../../../modules/auth/bindings/auth_binding.dart';
+import '../../../modules/home/views/home_view.dart';
+import '../../../modules/home/bindings/home_binding.dart';
+import '../../../modules/dashboard/views/dashboard_view.dart';
+import '../../../modules/dashboard/bindings/dashboard_binding.dart';
+import '../../../modules/settings/views/settings_view.dart';
+import '../../../modules/settings/bindings/settings_binding.dart';
 import 'app_routes.dart';
 
 class AppPages {
@@ -19,188 +29,41 @@ class AppPages {
       page: () => const OnboardingScreen(),
       binding: OnboardingBinding(),
     ),
-    // Temporarily commented out other routes
-    // TODO: Implement remaining routes and their corresponding screens/bindings
     // Auth Pages
-    // GetPage(
-    //   name: AppRoutes.login,
-    //   page: () => const LoginScreen(),
-    //   binding: AuthBinding(),
-    // ),
-    // GetPage(
-    //   name: AppRoutes.register,
-    //   page: () => const RegisterScreen(),
-    //   binding: AuthBinding(),
-    // ),
-    // GetPage(
-    //   name: AppRoutes.forgotPassword,
-    //   page: () => const ForgotPasswordScreen(),
-    //   binding: AuthBinding(),
-    // ),
-    // GetPage(
-    //   name: AppRoutes.resetPassword,
-    //   page: () => const ResetPasswordScreen(),
-    //   binding: AuthBinding(),
-    // ),
-    // GetPage(
-    //   name: AppRoutes.verifyEmail,
-    //   page: () => const VerifyEmailScreen(),
-    //   binding: AuthBinding(),
-    // ),
-    // 
-    // // Main Pages
-    // GetPage(
-    //   name: AppRoutes.home,
-    //   page: () => const HomeScreen(),
-    //   binding: HomeBinding(),
-    //   children: [
-    //     GetPage(
-    //       name: AppRoutes.dashboard,
-    //       page: () => const DashboardScreen(),
-    //       binding: DashboardBinding(),
-    //     ),
-    //     GetPage(
-    //       name: AppRoutes.profile,
-    //       page: () => const ProfileScreen(),
-    //       binding: ProfileBinding(),
-    //     ),
-    //     GetPage(
-    //       name: AppRoutes.settings,
-    //       page: () => const SettingsScreen(),
-    //       binding: SettingsBinding(),
-    //     ),
-    //   ],
-    // ),
-    // 
-    // // Budget Pages
-    // GetPage(
-    //   name: AppRoutes.budgets,
-    //   page: () => const BudgetsScreen(),
-    //   binding: BudgetBinding(),
-    //   children: [
-    //     GetPage(
-    //       name: '/add',
-    //       page: () => const AddBudgetScreen(),
-    //     ),
-    //     GetPage(
-    //       name: '/edit',
-    //       page: () => const EditBudgetScreen(),
-    //     ),
-    //     GetPage(
-    //       name: '/details',
-    //       page: () => const BudgetDetailsScreen(),
-    //     ),
-    //     GetPage(
-    //       name: '/categories',
-    //       page: () => const BudgetCategoriesScreen(),
-    //     ),
-    //   ],
-    // ),
-    // 
-    // // Transaction Pages
-    // GetPage(
-    //   name: AppRoutes.transactions,
-    //   page: () => const TransactionsScreen(),
-    //   binding: TransactionBinding(),
-    //   children: [
-    //     GetPage(
-    //       name: '/add',
-    //       page: () => const AddTransactionScreen(),
-    //     ),
-    //     GetPage(
-    //       name: '/edit',
-    //       page: () => const EditTransactionScreen(),
-    //     ),
-    //     GetPage(
-    //       name: '/details',
-    //       page: () => const TransactionDetailsScreen(),
-    //     ),
-    //     GetPage(
-    //       name: '/categories',
-    //       page: () => const TransactionCategoriesScreen(),
-    //     ),
-    //   ],
-    // ),
-    // 
-    // // Report Pages
-    // GetPage(
-    //   name: AppRoutes.reports,
-    //   page: () => const ReportsScreen(),
-    //   binding: ReportBinding(),
-    //   children: [
-    //     GetPage(
-    //       name: '/details',
-    //       page: () => const ReportDetailsScreen(),
-    //     ),
-    //     GetPage(
-    //       name: '/export',
-    //       page: () => const ExportReportScreen(),
-    //     ),
-    //   ],
-    // ),
-    // 
-    // // Settings Pages
-    // GetPage(
-    //   name: AppRoutes.accountSettings,
-    //   page: () => const AccountSettingsScreen(),
-    //   binding: SettingsBinding(),
-    // ),
-    // GetPage(
-    //   name: AppRoutes.securitySettings,
-    //   page: () => const SecuritySettingsScreen(),
-    //   binding: SettingsBinding(),
-    // ),
-    // GetPage(
-    //   name: AppRoutes.notificationSettings,
-    //   page: () => const NotificationSettingsScreen(),
-    //   binding: SettingsBinding(),
-    // ),
-    // GetPage(
-    //   name: AppRoutes.appearanceSettings,
-    //   page: () => const AppearanceSettingsScreen(),
-    //   binding: SettingsBinding(),
-    // ),
-    // GetPage(
-    //   name: AppRoutes.currencySettings,
-    //   page: () => const CurrencySettingsScreen(),
-    //   binding: SettingsBinding(),
-    // ),
-    // GetPage(
-    //   name: AppRoutes.languageSettings,
-    //   page: () => const LanguageSettingsScreen(),
-    //   binding: SettingsBinding(),
-    // ),
-    // 
-    // // Help & Support Pages
-    // GetPage(
-    //   name: AppRoutes.help,
-    //   page: () => const HelpScreen(),
-    //   binding: SupportBinding(),
-    // ),
-    // GetPage(
-    //   name: AppRoutes.support,
-    //   page: () => const SupportScreen(),
-    //   binding: SupportBinding(),
-    // ),
-    // GetPage(
-    //   name: AppRoutes.faq,
-    //   page: () => const FAQScreen(),
-    //   binding: SupportBinding(),
-    // ),
-    // GetPage(
-    //   name: AppRoutes.about,
-    //   page: () => const AboutScreen(),
-    //   binding: SupportBinding(),
-    // ),
-    // GetPage(
-    //   name: AppRoutes.privacyPolicy,
-    //   page: () => const PrivacyPolicyScreen(),
-    //   binding: SupportBinding(),
-    // ),
-    // GetPage(
-    //   name: AppRoutes.termsOfService,
-    //   page: () => const TermsOfServiceScreen(),
-    //   binding: SupportBinding(),
-    // ),
+    GetPage(
+      name: AppRoutes.login,
+      page: () => const LoginView(),
+      binding: AuthBinding(),
+    ),
+    GetPage(
+      name: AppRoutes.register,
+      page: () => const SignupView(),
+      binding: AuthBinding(),
+    ),
+    GetPage(
+      name: AppRoutes.forgotPassword,
+      page: () => ForgotPasswordView(),
+      binding: AuthBinding(),
+    ),
+    // Main Pages
+    GetPage(
+      name: AppRoutes.home,
+      page: () => const HomeView(),
+      binding: HomeBinding(),
+    ),
+    GetPage(
+      name: AppRoutes.dashboard,
+      page: () => const DashboardView(),
+      binding: DashboardBinding(),
+    ),
+    GetPage(
+      name: AppRoutes.settings,
+      page: () => const SettingsView(),
+      binding: SettingsBinding(),
+    ),
+    // Remaining routes will be implemented as their screens are developed:
+    // - Profile
+    // - Budget related screens
+    // - Transaction related screens
   ];
 }
