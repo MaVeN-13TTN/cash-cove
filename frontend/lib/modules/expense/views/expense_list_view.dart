@@ -30,19 +30,27 @@ class ExpenseListView extends GetView<ExpenseController> {
 
         if (controller.error.value.isNotEmpty) {
           return ErrorState(
-            message: controller.error.value,
+            title: 'Error',
+            description: controller.error.value,
             onRetry: controller.fetchExpenses,
           );
         }
 
         if (controller.expenses.isEmpty) {
           return EmptyState(
-            message: 'No expenses found',
-            suggestion: 'Add your first expense',
-            onActionPressed: () => Get.to(() => const AddExpenseView()),
+            title: 'No Expenses',
+            description: 'Start tracking your expenses by adding your first expense',
+            icon: Icons.receipt_long,
+            onAction: () => Get.to(() => const AddExpenseView()),
+            actionText: 'Add Expense',
           );
         }
 
+        // TODO: Implement category filtering
+        // Potential implementation:
+        // 1. Add a dropdown or chip selector for categories
+        // 2. Modify controller to support category-based filtering
+        // 3. Update the expenses list based on selected category
         return RefreshIndicator(
           onRefresh: controller.fetchExpenses,
           child: ListView.separated(
@@ -123,7 +131,7 @@ class ExpenseListView extends GetView<ExpenseController> {
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
-          mainAxisSize MainAxisSize.min,
+          mainAxisSize: MainAxisSize.min,
           children: [
             Text(
               expense.title,

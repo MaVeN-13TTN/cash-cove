@@ -8,14 +8,16 @@ import '../../../../../data/models/expense/expense_model.dart';
 import '../../../../../shared/widgets/custom_text_field.dart';
 import '../../controllers/expense_controller.dart';
 import 'expense_category_selector.dart';
+import '../../../../../core/services/auth/auth_service.dart';
+import '../../../../../core/services/settings/settings_service.dart';
 
 class ExpenseForm extends StatelessWidget {
   final ExpenseModel? initialExpense;
   final Function(ExpenseModel) onSubmit;
 
   const ExpenseForm({
-    Key? key, 
-    this.initialExpense, 
+    Key? key,
+    this.initialExpense,
     required this.onSubmit,
   }) : super(key: key);
 
@@ -34,15 +36,15 @@ class ExpenseForm extends StatelessWidget {
       text: initialExpense?.description ?? '',
     );
     final dateController = TextEditingController(
-      text: initialExpense?.date != null 
-        ? DateFormat.yMd().format(initialExpense!.date) 
-        : '',
+      text: initialExpense?.date != null
+          ? DateFormat.yMd().format(initialExpense!.date)
+          : '',
     );
 
-    final RxString selectedCategory = 
-      (initialExpense?.category ?? controller.expenseCategories.first).obs;
-    final Rx<DateTime> selectedDate = 
-      (initialExpense?.date ?? DateTime.now()).obs;
+    final RxString selectedCategory = RxString(
+        initialExpense?.category ?? controller.expenseCategories.first);
+    final Rx<DateTime> selectedDate =
+        (initialExpense?.date ?? DateTime.now()).obs;
 
     return Form(
       key: formKey,
@@ -65,11 +67,11 @@ class ExpenseForm extends StatelessWidget {
           ),
           const SizedBox(height: 16),
           Obx(() => ExpenseCategorySelector(
-            initialCategory: selectedCategory.value,
-            onCategorySelected: (category) {
-              selectedCategory.value = category;
-            },
-          )),
+                initialCategory: selectedCategory.value,
+                onCategorySelected: (category) {
+                  selectedCategory.value = category;
+                },
+              )),
           const SizedBox(height: 16),
           CustomTextField(
             controller: dateController,
@@ -86,8 +88,7 @@ class ExpenseForm extends StatelessWidget {
               );
               if (pickedDate != null) {
                 selectedDate.value = pickedDate;
-                dateController.text = 
-                  DateFormat.yMd().format(pickedDate);
+                dateController.text = DateFormat.yMd().format(pickedDate);
               }
             },
           ),
@@ -104,16 +105,16 @@ class ExpenseForm extends StatelessWidget {
               if (formKey.currentState!.validate()) {
                 final expenseModel = ExpenseModel(
                   id: initialExpense?.id ?? const Uuid().v4(),
-                  userId: 'current_user_id', // TODO: Replace with actual user ID
+                  userId: Get.find<AuthService>().currentUser ?? 'unknown_user',
                   title: titleController.text,
                   amount: double.parse(amountController.text),
-                  currency: 'USD', // TODO: Make dynamic
+                  currency: Get.find<SettingsService>().defaultCurrency.value,
                   date: selectedDate.value,
                   category: selectedCategory.value,
-                  description: descriptionController.text.isEmpty 
-                    ? null 
-                    : descriptionController.text,
-                  attachments: null, // TODO: Implement attachment upload
+                  description: descriptionController.text.isEmpty
+                      ? null
+                      : descriptionController.text,
+                  attachments: [],
                   createdAt: initialExpense?.createdAt ?? DateTime.now(),
                   updatedAt: DateTime.now(),
                   budgetId: null, // Optional budget association
@@ -123,9 +124,7 @@ class ExpenseForm extends StatelessWidget {
               }
             },
             child: Text(
-              initialExpense == null 
-                ? 'Add Expense' 
-                : 'Update Expense',
+              initialExpense == null ? 'Add Expense' : 'Update Expense',
             ),
           ),
         ],
