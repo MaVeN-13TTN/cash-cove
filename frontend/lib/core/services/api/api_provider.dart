@@ -13,7 +13,7 @@ class ApiProvider extends GetxService {
   static Future<ApiProvider> init() async {
     final storage = Get.find<SecureStorage>();
     final apiClient = await ApiClient.initialize(
-      baseUrl: 'https://default.url', // Provide the actual base URL here
+      baseUrl: 'http://127.0.0.1:8000/api/v1', 
       tokenManager: await TokenManager.initialize(storage),
     );
     return Get.put(ApiProvider()..client = apiClient);

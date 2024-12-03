@@ -13,6 +13,7 @@ import '../auth/token_manager.dart';
 import '../auth/auth_service.dart';
 import '../../widgets/dialogs/dialog_service.dart';
 import 'offline_queue_service.dart';
+import 'token_interceptor.dart';
 
 class ApiClient extends GetxService {
   late dio_client.Dio _dio;
@@ -33,9 +34,12 @@ class ApiClient extends GetxService {
     _cacheManager = cacheManager {
     _dio = dio_client.Dio(
       dio_client.BaseOptions(
+        baseUrl: 'http://127.0.0.1:8000/api/v1',
         headers: {
           'Content-Type': 'application/json',
           'Accept': 'application/json',
+          'Access-Control-Allow-Origin': '*',
+          'Access-Control-Allow-Credentials': 'true',
         },
         validateStatus: (status) {
           return status! < 500;
@@ -90,6 +94,10 @@ class ApiClient extends GetxService {
         'Access-Control-Allow-Headers': 'Origin, Content-Type, Accept, Authorization, X-Request-With',
         'Access-Control-Allow-Credentials': 'true',
       });
+
+      // Add Token Interceptor for automatic token refresh
+      final tokenInterceptor = TokenInterceptor(_instance!._dio);
+      _instance!._dio.interceptors.add(tokenInterceptor);
 
       // Add more robust error logging
       _instance!._dio.interceptors.add(
