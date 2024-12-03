@@ -35,8 +35,8 @@ class AuthController extends GetxController {
 
   Future<bool> checkAuthStatus() async {
     try {
-      final token = await StorageUtils.getToken();
-      if (token != null) {
+      final accessToken = await StorageUtils.getAccessToken();
+      if (accessToken != null) {
         await getUserProfile();
         await getSecurityStatus();
         _isAuthenticated.value = true;
@@ -76,15 +76,18 @@ class AuthController extends GetxController {
     }
   }
 
-  Future<void> signup(String name, String email, String password) async {
+  Future<void> signup(String name, String email, String password, String confirmPassword, String username, bool termsAccepted) async {
     try {
       _isLoading.value = true;
       _error.value = '';
 
-      final response = await _apiClient.post('/auth/register', data: {
+      final response = await _apiClient.post('/auth/register/', data: {
         'name': name,
         'email': email,
         'password': password,
+        'confirm_password': confirmPassword,
+        'username': username,
+        'terms_accepted': termsAccepted,
       });
 
       await _handleAuthResponse(response.data);
@@ -335,7 +338,7 @@ class AuthController extends GetxController {
 
   Future<void> logout() async {
     try {
-      await StorageUtils.deleteToken();
+      await StorageUtils.clearTokens();
       _isAuthenticated.value = false;
       _user.value = null;
       _isEmailVerified.value = false;
@@ -344,14 +347,14 @@ class AuthController extends GetxController {
       Get.offAllNamed('/login');
     } catch (e, stackTrace) {
       LoggerUtils.error('Error during logout', e, stackTrace);
-      rethrow;
     }
   }
 
   Future<void> _handleAuthResponse(Map<String, dynamic> data) async {
     try {
-      if (data['token'] != null) {
-        await StorageUtils.saveToken(data['token']);
+      if (data['access'] != null && data['refresh'] != null) {
+        await StorageUtils.saveToken('access_token', data['access']);
+        await StorageUtils.saveToken('refresh_token', data['refresh']);
         _isAuthenticated.value = true;
         await getUserProfile();
       }

@@ -1,11 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import '../../../core/services/api/api_client.dart';
 import '../../../core/utils/storage_utils.dart';
 import 'auth_controller.dart';
 import '../../../app/config/routes/app_routes.dart';
 
 class LoginController extends GetxController {
-  final AuthController _authController = Get.find<AuthController>();
+  final ApiClient _apiClient = Get.find<ApiClient>();
 
   final emailController = TextEditingController();
   final passwordController = TextEditingController();
@@ -16,15 +17,19 @@ class LoginController extends GetxController {
   final _isLocked = false.obs;
   final _lockoutEndTime = Rxn<DateTime>();
   final _remainingAttempts = 5.obs;
+  final RxString _error = ''.obs;
 
   bool get obscurePassword => _obscurePassword.value;
   bool get rememberMe => _rememberMe.value;
   bool get isLocked => _isLocked.value;
   DateTime? get lockoutEndTime => _lockoutEndTime.value;
   int get remainingAttempts => _remainingAttempts.value;
+  String get error => _error.value;
 
   void togglePasswordVisibility() => _obscurePassword.toggle();
   void toggleRememberMe() => _rememberMe.toggle();
+
+  set error(String value) => _error.value = value;
 
   String? validateEmail(String? value) {
     if (value == null || value.isEmpty) {
@@ -67,10 +72,18 @@ class LoginController extends GetxController {
     if (!formKey.currentState!.validate()) return;
 
     try {
-      await _authController.login(
-        emailController.text.trim(),
-        passwordController.text,
-      );
+      final response = await _apiClient.dio.post('/auth/token/', data: {
+        'email': emailController.text.trim(),
+        'password': passwordController.text,
+      });
+      
+      // Process the response if needed
+      if (response.statusCode == 200) {
+        final tokens = response.data;
+        // Example: Store tokens securely
+        await StorageUtils.saveAccessToken(tokens['access']);
+        await StorageUtils.saveRefreshToken(tokens['refresh']);
+      }
 
       if (rememberMe) {
         // Save email for next time
@@ -80,6 +93,7 @@ class LoginController extends GetxController {
 
       _remainingAttempts.value = 5;
       _isLocked.value = false;
+      _error.value = '';
     } catch (e) {
       if (e.toString().contains('423')) {
         // Account locked
@@ -108,6 +122,8 @@ class LoginController extends GetxController {
           colorText: Colors.white,
         );
       }
+      _error.value = e.toString();
+      rethrow;
     }
   }
 

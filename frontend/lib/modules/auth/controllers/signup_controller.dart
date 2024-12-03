@@ -12,6 +12,7 @@ class SignupController extends GetxController {
   final emailController = TextEditingController();
   final passwordController = TextEditingController();
   final confirmPasswordController = TextEditingController();
+  final usernameController = TextEditingController();
   final formKey = GlobalKey<FormState>();
 
   final _obscurePassword = true.obs;
@@ -25,6 +26,7 @@ class SignupController extends GetxController {
   final _passwordStrengthText = ''.obs;
   final _isFormValid = false.obs;
   final Rx<Color> _passwordStrengthColor = const Color(0xFF9E9E9E).obs;
+  final RxString _error = ''.obs;
 
   bool get obscurePassword => _obscurePassword.value;
   bool get obscureConfirmPassword => _obscureConfirmPassword.value;
@@ -37,6 +39,8 @@ class SignupController extends GetxController {
   String get passwordStrengthText => _passwordStrengthText.value;
   Color get passwordStrengthColor => _passwordStrengthColor.value;
   bool get isFormValid => _isFormValid.value;
+  String get error => _error.value;
+  set error(String value) => _error.value = value;
 
   bool get canSubmit {
     return isFormValid && 
@@ -163,6 +167,16 @@ class SignupController extends GetxController {
     return null;
   }
 
+  String? validateUsername(String? value) {
+    if (value == null || value.isEmpty) {
+      return 'Username is required';
+    }
+    if (value.length < 3) {
+      return 'Username must be at least 3 characters';
+    }
+    return null;
+  }
+
   void showTermsAndConditions() {
     Get.dialog(
       AlertDialog(
@@ -186,22 +200,19 @@ class SignupController extends GetxController {
   }
 
   Future<void> signup() async {
-    if (!canSubmit) return;
-
     try {
       await _authController.signup(
         nameController.text.trim(),
         emailController.text.trim(),
         passwordController.text,
+        confirmPasswordController.text,
+        usernameController.text.trim(),
+        acceptedTerms,
       );
+      _error.value = '';
     } catch (e) {
-      Get.snackbar(
-        'Error',
-        _authController.error,
-        snackPosition: SnackPosition.BOTTOM,
-        backgroundColor: Colors.red,
-        colorText: Colors.white,
-      );
+      _error.value = e.toString();
+      rethrow;
     }
   }
 
@@ -216,6 +227,7 @@ class SignupController extends GetxController {
       validateForm();
     });
     confirmPasswordController.addListener(validateForm);
+    usernameController.addListener(validateForm);
   }
 
   @override
@@ -227,10 +239,12 @@ class SignupController extends GetxController {
       validateForm();
     });
     confirmPasswordController.removeListener(validateForm);
+    usernameController.removeListener(validateForm);
     nameController.dispose();
     emailController.dispose();
     passwordController.dispose();
     confirmPasswordController.dispose();
+    usernameController.dispose();
     super.onClose();
   }
 }
