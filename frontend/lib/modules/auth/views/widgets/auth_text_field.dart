@@ -18,6 +18,7 @@ class AuthTextField extends StatelessWidget {
   final VoidCallback? onTap;
   final void Function(String)? onChanged;
   final void Function(String)? onSubmitted;
+  final bool enabled;
 
   const AuthTextField({
     Key? key,
@@ -36,6 +37,7 @@ class AuthTextField extends StatelessWidget {
     this.onTap,
     this.onChanged,
     this.onSubmitted,
+    this.enabled = true,
   }) : super(key: key);
 
   @override
@@ -51,7 +53,7 @@ class AuthTextField extends StatelessWidget {
       keyboardType: keyboardType,
       textCapitalization: textCapitalization,
       inputFormatters: inputFormatters,
-      enabled: true,
+      enabled: enabled,
       focusNode: focusNode,
       onChanged: onChanged,
     );

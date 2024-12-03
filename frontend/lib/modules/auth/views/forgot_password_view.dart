@@ -24,7 +24,7 @@ class ForgotPasswordView extends StatelessWidget {
     if (!_formKey.currentState!.validate()) return;
     
     try {
-      await _authController.forgotPassword(_emailController.text.trim());
+      await _authController.resetPassword(_emailController.text.trim());
       Get.snackbar(
         'Success',
         'Password reset instructions have been sent to your email',

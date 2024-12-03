@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import '../controllers/auth_controller.dart';
 import '../controllers/login_controller.dart';
 import 'widgets/index.dart';
 
@@ -13,174 +12,133 @@ class LoginView extends GetView<LoginController> {
       body: SafeArea(
         child: Center(
           child: SingleChildScrollView(
-            padding: const EdgeInsets.all(24.0),
+            padding:
+                const EdgeInsets.symmetric(horizontal: 24.0, vertical: 16.0),
             child: Form(
               key: controller.formKey,
               child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                crossAxisAlignment: CrossAxisAlignment.stretch,
+                mainAxisAlignment: MainAxisAlignment.start,
+                crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
                   const AuthHeader(
                     icon: Icons.account_balance_wallet,
                     title: 'Welcome Back!',
                     subtitle: 'Sign in to continue tracking your budget',
                   ),
-                  const SizedBox(height: 32),
+                  const SizedBox(height: 40),
 
-                  // Account Lockout Warning
-                  Obx(() {
-                    if (controller.isLocked) {
-                      final remaining = controller.lockoutEndTime?.difference(DateTime.now());
-                      if (remaining != null && remaining.inSeconds > 0) {
-                        return Container(
-                          padding: const EdgeInsets.all(8),
-                          margin: const EdgeInsets.only(bottom: 16),
-                          decoration: BoxDecoration(
-                            color: Colors.red.shade50,
-                            borderRadius: BorderRadius.circular(8),
-                            border: Border.all(color: Colors.red.shade200),
-                          ),
-                          child: Text(
-                            'Account temporarily locked. Try again in ${remaining.inMinutes} minutes.',
-                            style: TextStyle(color: Colors.red.shade700),
-                            textAlign: TextAlign.center,
-                          ),
-                        );
-                      }
-                    }
-                    return const SizedBox.shrink();
-                  }),
+                  // Error Message
+                  GetX<LoginController>(
+                    builder: (controller) {
+                      return Column(
+                        children: [
+                          if (controller.isLocked)
+                            const Padding(
+                              padding: EdgeInsets.symmetric(vertical: 8.0),
+                              child: Text(
+                                'Account is locked. Try again later.',
+                                style: TextStyle(
+                                    color: Colors.red,
+                                    fontWeight: FontWeight.bold),
+                              ),
+                            ),
+                          if (controller.remainingAttempts < 5)
+                            Padding(
+                              padding:
+                                  const EdgeInsets.symmetric(vertical: 8.0),
+                              child: Text(
+                                'Attempts remaining: ${controller.remainingAttempts}',
+                                style: const TextStyle(
+                                    color: Colors.orange,
+                                    fontWeight: FontWeight.bold),
+                              ),
+                            ),
+                        ],
+                      );
+                    },
+                  ),
+                  const SizedBox(height: 20),
 
                   // Email Field
-                  Obx(() => AuthTextField(
+                  AuthTextField(
                     controller: controller.emailController,
                     labelText: 'Email',
                     hintText: 'Enter your email',
                     keyboardType: TextInputType.emailAddress,
                     prefixIcon: Icons.email_outlined,
                     validator: controller.validateEmail,
-                    onChanged: (_) => controller.update(),
-                  )),
-                  const SizedBox(height: 16),
+                  ),
+                  const SizedBox(height: 20),
 
                   // Password Field
-                  Obx(() => AuthTextField(
+                  AuthTextField(
                     controller: controller.passwordController,
                     labelText: 'Password',
                     hintText: 'Enter your password',
                     obscureText: controller.obscurePassword,
                     prefixIcon: Icons.lock_outline,
+                    validator: controller.validatePassword,
                     suffixIcon: IconButton(
                       icon: Icon(
                         controller.obscurePassword
-                            ? Icons.visibility_outlined
-                            : Icons.visibility_off_outlined,
+                            ? Icons.visibility_off
+                            : Icons.visibility,
                       ),
                       onPressed: controller.togglePasswordVisibility,
                     ),
-                    validator: controller.validatePassword,
-                    onChanged: (_) => controller.update(),
-                  )),
-                  const SizedBox(height: 8),
-
-                  // Remaining Attempts Warning
-                  Obx(() {
-                    if (controller.remainingAttempts < 5 && !controller.isLocked) {
-                      return Container(
-                        padding: const EdgeInsets.symmetric(vertical: 8),
-                        child: Text(
-                          'Warning: ${controller.remainingAttempts} login attempts remaining',
-                          style: TextStyle(
-                            color: Colors.orange.shade800,
-                            fontSize: 12,
-                          ),
-                          textAlign: TextAlign.center,
-                        ),
-                      );
-                    }
-                    return const SizedBox.shrink();
-                  }),
+                  ),
+                  const SizedBox(height: 20),
 
                   // Remember Me and Forgot Password
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       Obx(() => Row(
-                        children: [
-                          Checkbox(
-                            value: controller.rememberMe,
-                            onChanged: controller.isLocked ? null : (_) => controller.toggleRememberMe(),
-                          ),
-                          Text(
-                            'Remember me',
-                            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                              color: controller.isLocked ? Colors.grey : null,
-                            ),
-                          ),
-                        ],
-                      )),
+                            children: [
+                              Checkbox(
+                                value: controller.rememberMe,
+                                onChanged: (value) =>
+                                    controller.toggleRememberMe(),
+                              ),
+                              const Text('Remember Me'),
+                            ],
+                          )),
                       TextButton(
-                        onPressed: controller.isLocked ? null : controller.navigateToForgotPassword,
-                        child: Text(
-                          'Forgot Password?',
-                          style: TextStyle(
-                            color: controller.isLocked 
-                              ? Colors.grey 
-                              : Theme.of(context).primaryColor,
-                          ),
-                        ),
+                        onPressed: () => controller.navigateToForgotPassword(),
+                        child: const Text('Forgot Password?'),
                       ),
                     ],
                   ),
-                  const SizedBox(height: 24),
+                  const SizedBox(height: 30),
 
                   // Login Button
-                  Obx(() {
-                    final isLoading = Get.find<AuthController>().isLoading;
-                    return AuthButton(
-                      onPressed: controller.isLocked || isLoading
-                          ? () {}
-                          : () { controller.login(); },
-                      text: 'Login',
-                      isLoading: isLoading,
-                    );
-                  }),
-                  const SizedBox(height: 24),
+                  AuthButton(
+                    onPressed: () => controller.login(),
+                    text: 'Login',
+                  ),
+                  const SizedBox(height: 30),
 
                   // Social Auth Buttons
-                  Obx(() => SocialAuthButtons(
-                    onGoogleSignIn: controller.isLocked 
-                        ? () {}
-                        : () { controller.handleGoogleSignIn(); },
-                    onFacebookSignIn: controller.isLocked 
-                        ? () {}
-                        : () { controller.handleFacebookSignIn(); },
-                    onAppleSignIn: controller.isLocked 
-                        ? () {}
-                        : () { controller.handleAppleSignIn(); },
-                  )),
+                  SocialAuthButtons(
+                    onGoogleSignIn: () {
+                      // Handle Google Sign-In
+                      controller.handleGoogleSignIn();
+                    },
+                    onFacebookSignIn: () {
+                      // Handle Facebook Sign-In
+                      controller.handleFacebookSignIn();
+                    },
+                  ),
+                  const SizedBox(height: 30),
 
-                  const SizedBox(height: 24),
-
-                  // Sign Up Link
+                  // Sign Up
                   Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      Text(
-                        'Don\'t have an account? ',
-                        style: Theme.of(context).textTheme.bodyMedium,
-                      ),
+                      const Text("Don't have an account yet? "),
                       TextButton(
-                        onPressed: controller.isLocked ? null : controller.navigateToSignup,
-                        child: Text(
-                          'Sign Up',
-                          style: TextStyle(
-                            color: controller.isLocked 
-                              ? Colors.grey 
-                              : Theme.of(context).primaryColor,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
+                        onPressed: () => controller.navigateToSignup(),
+                        child: const Text('Sign Up'),
                       ),
                     ],
                   ),

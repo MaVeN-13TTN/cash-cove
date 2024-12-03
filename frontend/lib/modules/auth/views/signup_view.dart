@@ -65,40 +65,8 @@ class SignupView extends GetView<SignupController> {
                   keyboardType: TextInputType.emailAddress,
                   prefixIcon: Icons.email_outlined,
                   validator: controller.validateEmail,
-                  onChanged: controller.checkEmailAvailability,
                 ),
                 const SizedBox(height: 16),
-
-                // Email Availability Status
-                Obx(() {
-                  if (controller.isCheckingEmail) {
-                    return Container(
-                      padding: const EdgeInsets.symmetric(vertical: 8),
-                      child: const Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          SizedBox(
-                            width: 16,
-                            height: 16,
-                            child: CircularProgressIndicator(strokeWidth: 2),
-                          ),
-                          SizedBox(width: 8),
-                          Text('Checking email availability...'),
-                        ],
-                      ),
-                    );
-                  } else if (controller.emailError.isNotEmpty) {
-                    return Container(
-                      padding: const EdgeInsets.symmetric(vertical: 8),
-                      child: Text(
-                        controller.emailError,
-                        style: const TextStyle(color: Colors.red),
-                        textAlign: TextAlign.center,
-                      ),
-                    );
-                  }
-                  return const SizedBox.shrink();
-                }),
 
                 // Password Field
                 Column(

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'dart:async';
 import '../../../core/services/api/api_client.dart';
 import 'auth_controller.dart';
 
@@ -19,9 +20,11 @@ class SignupController extends GetxController {
   final _passwordStrength = 0.0.obs;
   final _isEmailAvailable = true.obs;
   final _isCheckingEmail = false.obs;
+  final _isLoading = false.obs;
   final _emailError = ''.obs;
   final _passwordStrengthText = ''.obs;
-  final Rx<Color> _passwordStrengthColor = const Color(0xFF9E9E9E).obs; // Initialize with grey
+  final _isFormValid = false.obs;
+  final Rx<Color> _passwordStrengthColor = const Color(0xFF9E9E9E).obs;
 
   bool get obscurePassword => _obscurePassword.value;
   bool get obscureConfirmPassword => _obscureConfirmPassword.value;
@@ -29,16 +32,22 @@ class SignupController extends GetxController {
   double get passwordStrength => _passwordStrength.value;
   bool get isEmailAvailable => _isEmailAvailable.value;
   bool get isCheckingEmail => _isCheckingEmail.value;
+  bool get isLoading => _isLoading.value;
   String get emailError => _emailError.value;
   String get passwordStrengthText => _passwordStrengthText.value;
   Color get passwordStrengthColor => _passwordStrengthColor.value;
+  bool get isFormValid => _isFormValid.value;
 
   bool get canSubmit {
-    return formKey.currentState?.validate() == true && 
+    return isFormValid && 
            acceptedTerms && 
-           isEmailAvailable && 
+           !isLoading &&
            !isCheckingEmail &&
            passwordStrength >= 2.0;
+  }
+
+  void validateForm() {
+    _isFormValid.value = formKey.currentState?.validate() ?? false;
   }
 
   void togglePasswordVisibility() => _obscurePassword.toggle();
@@ -58,46 +67,48 @@ class SignupController extends GetxController {
     switch (strength) {
       case 0:
         _passwordStrengthText.value = 'Very Weak';
-        _passwordStrengthColor.value = const Color(0xFFD32F2F); // Material Red 700
+        _passwordStrengthColor.value = const Color(0xFFD32F2F);
         break;
       case 1:
         _passwordStrengthText.value = 'Weak';
-        _passwordStrengthColor.value = const Color(0xFFF57C00); // Material Orange 700
+        _passwordStrengthColor.value = const Color(0xFFF57C00);
         break;
       case 2:
         _passwordStrengthText.value = 'Medium';
-        _passwordStrengthColor.value = const Color(0xFFFFA000); // Material Amber 700
+        _passwordStrengthColor.value = const Color(0xFFFFA000);
         break;
       case 3:
         _passwordStrengthText.value = 'Strong';
-        _passwordStrengthColor.value = const Color(0xFF388E3C); // Material Green 700
+        _passwordStrengthColor.value = const Color(0xFF388E3C);
         break;
       case 4:
         _passwordStrengthText.value = 'Very Strong';
-        _passwordStrengthColor.value = const Color(0xFF2E7D32); // Material Green 800
+        _passwordStrengthColor.value = const Color(0xFF2E7D32);
         break;
     }
   }
 
-  Future<void> checkEmailAvailability(String email) async {
-    if (email.isEmpty) {
-      _emailError.value = '';
-      _isEmailAvailable.value = false;
-      return;
-    }
-
-    _isCheckingEmail.value = true;
-    _emailError.value = '';
-
+  Future<bool> checkEmailAvailability(String email) async {
     try {
-      final response = await _apiClient.get('/auth/check-email', queryParameters: {'email': email});
-      _isEmailAvailable.value = response.data['available'] ?? false;
-      if (!_isEmailAvailable.value) {
+      _isCheckingEmail.value = true;
+      _emailError.value = '';
+      
+      final response = await _apiClient.get('/auth/check-email/', queryParameters: {
+        'email': email,
+      });
+
+      final available = response.data['available'] ?? false;
+      _isEmailAvailable.value = !available;
+      
+      if (available) {
         _emailError.value = 'Email is already in use';
+        return false;
       }
+      return true;
     } catch (e) {
       _emailError.value = 'Error checking email availability';
       _isEmailAvailable.value = false;
+      return false;
     } finally {
       _isCheckingEmail.value = false;
     }
@@ -120,9 +131,6 @@ class SignupController extends GetxController {
     if (!GetUtils.isEmail(value)) {
       return 'Please enter a valid email';
     }
-    if (!isEmailAvailable) {
-      return 'Email is already in use';
-    }
     return null;
   }
 
@@ -133,8 +141,14 @@ class SignupController extends GetxController {
     if (value.length < 8) {
       return 'Password must be at least 8 characters';
     }
-    if (passwordStrength < 2) {
-      return 'Password is too weak';
+    if (!value.contains(RegExp(r'[A-Z]'))) {
+      return 'Password must contain at least one uppercase letter';
+    }
+    if (!value.contains(RegExp(r'[0-9]'))) {
+      return 'Password must contain at least one number';
+    }
+    if (!value.contains(RegExp(r'[!@#$%^&*(),.?":{}|<>]'))) {
+      return 'Password must contain at least one special character';
     }
     return null;
   }
@@ -172,7 +186,7 @@ class SignupController extends GetxController {
   }
 
   Future<void> signup() async {
-    if (!formKey.currentState!.validate() || !acceptedTerms) return;
+    if (!canSubmit) return;
 
     try {
       await _authController.signup(
@@ -180,18 +194,39 @@ class SignupController extends GetxController {
         emailController.text.trim(),
         passwordController.text,
       );
-      Get.offAllNamed('/home');
     } catch (e) {
       Get.snackbar(
         'Error',
-        'Failed to create account: ${e.toString()}',
+        _authController.error,
         snackPosition: SnackPosition.BOTTOM,
+        backgroundColor: Colors.red,
+        colorText: Colors.white,
       );
     }
   }
 
   @override
+  void onInit() {
+    super.onInit();
+    // Add listeners to validate form when text changes
+    nameController.addListener(validateForm);
+    emailController.addListener(validateForm);
+    passwordController.addListener(() {
+      updatePasswordStrength(passwordController.text);
+      validateForm();
+    });
+    confirmPasswordController.addListener(validateForm);
+  }
+
+  @override
   void onClose() {
+    nameController.removeListener(validateForm);
+    emailController.removeListener(validateForm);
+    passwordController.removeListener(() {
+      updatePasswordStrength(passwordController.text);
+      validateForm();
+    });
+    confirmPasswordController.removeListener(validateForm);
     nameController.dispose();
     emailController.dispose();
     passwordController.dispose();

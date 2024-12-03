@@ -2,10 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import '../../../core/utils/storage_utils.dart';
 import 'auth_controller.dart';
+import '../../../routes/app_pages.dart';
 
 class LoginController extends GetxController {
   final AuthController _authController = Get.find<AuthController>();
-  
+
   final emailController = TextEditingController();
   final passwordController = TextEditingController();
   final formKey = GlobalKey<FormState>();
@@ -73,13 +74,15 @@ class LoginController extends GetxController {
 
       if (rememberMe) {
         // Save email for next time
-        await StorageUtils.saveSecure('last_email', emailController.text.trim());
+        await StorageUtils.saveSecure(
+            'last_email', emailController.text.trim());
       }
 
       _remainingAttempts.value = 5;
       _isLocked.value = false;
     } catch (e) {
-      if (e.toString().contains('423')) { // Account locked
+      if (e.toString().contains('423')) {
+        // Account locked
         _isLocked.value = true;
         _lockoutEndTime.value = DateTime.now().add(const Duration(minutes: 30));
         Get.snackbar(
@@ -89,11 +92,13 @@ class LoginController extends GetxController {
           backgroundColor: Colors.red,
           colorText: Colors.white,
         );
-      } else if (e.toString().contains('429')) { // Rate limited
+      } else if (e.toString().contains('429')) {
+        // Rate limited
         _remainingAttempts.value--;
         if (_remainingAttempts.value <= 0) {
           _isLocked.value = true;
-          _lockoutEndTime.value = DateTime.now().add(const Duration(minutes: 5));
+          _lockoutEndTime.value =
+              DateTime.now().add(const Duration(minutes: 5));
         }
         Get.snackbar(
           'Warning',
@@ -143,11 +148,11 @@ class LoginController extends GetxController {
   }
 
   void navigateToSignup() {
-    Get.toNamed('/signup');
+    Get.toNamed(Routes.signup);
   }
 
   void navigateToForgotPassword() {
-    Get.toNamed('/forgot-password');
+    Get.toNamed(Routes.forgotPassword);
   }
 
   @override

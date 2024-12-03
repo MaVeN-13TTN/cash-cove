@@ -240,7 +240,7 @@ class AuthController extends GetxController {
       await _apiClient.post('/auth/forgot-password', data: {
         'email': email,
       });
-      
+
       // No need to handle response data since we just show success message
     } catch (e, stackTrace) {
       _handleAuthError(e, stackTrace, 'Password reset');
@@ -255,7 +255,7 @@ class AuthController extends GetxController {
       _isLoading.value = true;
       final response = await _apiClient.post('/auth/toggle-2fa');
       _is2FAEnabled.value = response.data['is_2fa_enabled'];
-      
+
       Get.snackbar(
         'Success',
         _is2FAEnabled.value ? '2FA enabled' : '2FA disabled',

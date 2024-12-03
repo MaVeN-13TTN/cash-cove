@@ -4,13 +4,11 @@ import '../../../../shared/widgets/buttons/social_auth_button.dart';
 class SocialAuthButtons extends StatelessWidget {
   final VoidCallback onGoogleSignIn;
   final VoidCallback onFacebookSignIn;
-  final VoidCallback onAppleSignIn;
 
   const SocialAuthButtons({
     Key? key,
     required this.onGoogleSignIn,
     required this.onFacebookSignIn,
-    required this.onAppleSignIn,
   }) : super(key: key);
 
   @override
@@ -36,17 +34,23 @@ class SocialAuthButtons extends StatelessWidget {
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceEvenly,
           children: [
-            SocialAuthButton(
-              provider: SocialAuthProvider.google,
-              onPressed: onGoogleSignIn,
+            Expanded(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 8.0),
+                child: SocialAuthButton(
+                  provider: SocialAuthProvider.google,
+                  onPressed: onGoogleSignIn,
+                ),
+              ),
             ),
-            SocialAuthButton(
-              provider: SocialAuthProvider.facebook,
-              onPressed: onFacebookSignIn,
-            ),
-            SocialAuthButton(
-              provider: SocialAuthProvider.apple,
-              onPressed: onAppleSignIn,
+            Expanded(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 8.0),
+                child: SocialAuthButton(
+                  provider: SocialAuthProvider.facebook,
+                  onPressed: onFacebookSignIn,
+                ),
+              ),
             ),
           ],
         ),
