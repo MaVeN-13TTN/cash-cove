@@ -5,7 +5,7 @@ import 'package:hive_flutter/hive_flutter.dart';
 import 'app/config/routes/app_pages.dart';
 
 import 'app/bindings/initial_binding.dart';
-import 'core/services/api/api_client.dart';
+import 'core/network/dio_client.dart';
 import 'core/services/auth/token_manager.dart';
 import 'core/services/storage/secure_storage.dart';
 import 'modules/auth/controllers/auth_controller.dart';
@@ -34,15 +34,15 @@ void main() async {
   await Get.putAsync<TokenManager>(
       () async => await TokenManager.initialize(secureStorage));
 
-  // Initialize ApiClient
-  await Get.putAsync<ApiClient>(() async => await ApiClient.initialize(
+  // Initialize DioClient
+  await Get.putAsync<DioClient>(() async => await DioClient.initialize(
         baseUrl: baseUrl,
         tokenManager: Get.find<TokenManager>(),
       ));
 
   // Initialize AuthController
   Get.put(AuthController(
-    apiClient: Get.find<ApiClient>(),
+    dioClient: Get.find<DioClient>(),
   ));
 
   runApp(const MyApp());

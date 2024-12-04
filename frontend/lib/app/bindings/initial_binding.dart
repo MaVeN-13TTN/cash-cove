@@ -4,7 +4,7 @@ import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import '../../core/services/storage/secure_storage.dart';
 import '../../core/services/auth/auth_service.dart';
-import '../../core/services/api/api_client.dart';
+import '../../core/network/dio_client.dart';
 import '../../core/services/auth/token_manager.dart';
 import '../../core/widgets/dialogs/dialog_service.dart';
 import '../../modules/auth/controllers/auth_controller.dart';
@@ -43,16 +43,16 @@ class InitialBinding extends Bindings {
     );
     Get.put<AuthService>(authService, permanent: true);
 
-    // API Client
-    final apiClient = await ApiClient.initialize(
+    // DioClient
+    final dioClient = await DioClient.initialize(
       baseUrl: 'http://127.0.0.1:8000/api/v1', 
       tokenManager: tokenManager,
     );
-    Get.put<ApiClient>(apiClient, permanent: true);
+    Get.put<DioClient>(dioClient, permanent: true);
 
     // Auth Controller
     Get.put<AuthController>(
-      AuthController(apiClient: apiClient),
+      AuthController(dioClient: dioClient),
       permanent: true,
     );
   }
