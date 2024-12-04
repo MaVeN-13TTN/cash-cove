@@ -1,12 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import '../../../core/services/api/api_client.dart';
+import '../../../core/network/dio_client.dart';
 import '../../../core/utils/storage_utils.dart';
 import 'auth_controller.dart';
 import '../../../app/config/routes/app_routes.dart';
 
 class LoginController extends GetxController {
-  final ApiClient _apiClient = Get.find<ApiClient>();
+  final DioClient _dioClient = Get.find<DioClient>();
 
   final emailController = TextEditingController();
   final passwordController = TextEditingController();
@@ -72,17 +72,21 @@ class LoginController extends GetxController {
     if (!formKey.currentState!.validate()) return;
 
     try {
-      final response = await _apiClient.dio.post('/auth/token/', data: {
+      final response = await _dioClient.dio.post('/auth/token/', data: {
         'email': emailController.text.trim(),
         'password': passwordController.text,
       });
-      
+
       // Process the response if needed
       if (response.statusCode == 200) {
         final tokens = response.data;
-        // Example: Store tokens securely
+        // Store tokens securely
         await StorageUtils.saveAccessToken(tokens['access']);
         await StorageUtils.saveRefreshToken(tokens['refresh']);
+
+        // Update auth state
+        final authController = Get.find<AuthController>();
+        await authController.checkAuthStatus();
       }
 
       if (rememberMe) {

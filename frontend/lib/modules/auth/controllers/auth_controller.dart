@@ -1,15 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import '../../../core/services/api/api_client.dart';
+import 'dart:async';
+import '../../../core/network/dio_client.dart';
 import '../../../core/utils/logger_utils.dart';
 import '../../../core/utils/storage_utils.dart';
 
 class AuthController extends GetxController {
-  final ApiClient _apiClient;
+  final DioClient _dioClient;
 
-  AuthController({
-    required ApiClient apiClient,
-  }) : _apiClient = apiClient;
+  AuthController({required DioClient dioClient}) : _dioClient = dioClient;
 
   final _isAuthenticated = false.obs;
   final _user = Rxn<Map<String, dynamic>>();
@@ -56,20 +55,23 @@ class AuthController extends GetxController {
       _isLoading.value = true;
       _error.value = '';
 
-      final response = await _apiClient.post('/auth/login', data: {
+      final response = await _dioClient.dio.post('/auth/login/', data: {
         'email': email,
         'password': password,
       });
 
-      if (response.data['requires_2fa'] == true) {
-        Get.toNamed('/2fa-verification', arguments: {'email': email});
-        return;
+      if (response.statusCode == 200) {
+        final tokens = response.data;
+        await StorageUtils.saveAccessToken(tokens['access']);
+        await StorageUtils.saveRefreshToken(tokens['refresh']);
+        await checkAuthStatus();
       }
-
-      await _handleAuthResponse(response.data);
-    } catch (e, stackTrace) {
-      LoggerUtils.error('Error during login', e, stackTrace);
-      _error.value = 'An error occurred during login';
+    } catch (e) {
+      Get.snackbar(
+        'Login Error',
+        e.toString(),
+        snackPosition: SnackPosition.BOTTOM,
+      );
       rethrow;
     } finally {
       _isLoading.value = false;
@@ -81,7 +83,7 @@ class AuthController extends GetxController {
       _isLoading.value = true;
       _error.value = '';
 
-      final response = await _apiClient.post('/auth/register/', data: {
+      final response = await _dioClient.dio.post('/auth/register/', data: {
         'name': name,
         'email': email,
         'password': password,
@@ -90,9 +92,18 @@ class AuthController extends GetxController {
         'terms_accepted': termsAccepted,
       });
 
-      await _handleAuthResponse(response.data);
-    } catch (e, stackTrace) {
-      _handleAuthError(e, stackTrace, 'signup');
+      if (response.statusCode == 200) {
+        final tokens = response.data;
+        await StorageUtils.saveAccessToken(tokens['access']);
+        await StorageUtils.saveRefreshToken(tokens['refresh']);
+        await checkAuthStatus();
+      }
+    } catch (e) {
+      Get.snackbar(
+        'Signup Error',
+        e.toString(),
+        snackPosition: SnackPosition.BOTTOM,
+      );
       rethrow;
     } finally {
       _isLoading.value = false;
@@ -101,55 +112,67 @@ class AuthController extends GetxController {
 
   Future<void> signInWithGoogle() async {
     try {
-      _isLoading.value = true;
-      _error.value = '';
-
-      final response = await _apiClient.post('/auth/google', data: {
-        'token': await _getGoogleAuthToken(),
+      final response = await _dioClient.dio.post('/auth/google/', data: {
+        // Add necessary Google sign-in data
       });
 
-      await _handleAuthResponse(response.data);
-    } catch (e, stackTrace) {
-      _handleAuthError(e, stackTrace, 'Google sign-in');
+      if (response.statusCode == 200) {
+        final tokens = response.data;
+        await StorageUtils.saveAccessToken(tokens['access']);
+        await StorageUtils.saveRefreshToken(tokens['refresh']);
+        await checkAuthStatus();
+      }
+    } catch (e) {
+      Get.snackbar(
+        'Google Sign-In Error',
+        e.toString(),
+        snackPosition: SnackPosition.BOTTOM,
+      );
       rethrow;
-    } finally {
-      _isLoading.value = false;
     }
   }
 
   Future<void> signInWithFacebook() async {
     try {
-      _isLoading.value = true;
-      _error.value = '';
-
-      final response = await _apiClient.post('/auth/facebook', data: {
-        'token': await _getFacebookAuthToken(),
+      final response = await _dioClient.dio.post('/auth/facebook/', data: {
+        // Add necessary Facebook sign-in data
       });
 
-      await _handleAuthResponse(response.data);
-    } catch (e, stackTrace) {
-      _handleAuthError(e, stackTrace, 'Facebook sign-in');
+      if (response.statusCode == 200) {
+        final tokens = response.data;
+        await StorageUtils.saveAccessToken(tokens['access']);
+        await StorageUtils.saveRefreshToken(tokens['refresh']);
+        await checkAuthStatus();
+      }
+    } catch (e) {
+      Get.snackbar(
+        'Facebook Sign-In Error',
+        e.toString(),
+        snackPosition: SnackPosition.BOTTOM,
+      );
       rethrow;
-    } finally {
-      _isLoading.value = false;
     }
   }
 
   Future<void> signInWithApple() async {
     try {
-      _isLoading.value = true;
-      _error.value = '';
-
-      final response = await _apiClient.post('/auth/apple', data: {
-        'token': await _getAppleAuthToken(),
+      final response = await _dioClient.dio.post('/auth/apple/', data: {
+        // Add necessary Apple sign-in data
       });
 
-      await _handleAuthResponse(response.data);
-    } catch (e, stackTrace) {
-      _handleAuthError(e, stackTrace, 'Apple sign-in');
+      if (response.statusCode == 200) {
+        final tokens = response.data;
+        await StorageUtils.saveAccessToken(tokens['access']);
+        await StorageUtils.saveRefreshToken(tokens['refresh']);
+        await checkAuthStatus();
+      }
+    } catch (e) {
+      Get.snackbar(
+        'Apple Sign-In Error',
+        e.toString(),
+        snackPosition: SnackPosition.BOTTOM,
+      );
       rethrow;
-    } finally {
-      _isLoading.value = false;
     }
   }
 
@@ -158,20 +181,26 @@ class AuthController extends GetxController {
       _isLoading.value = true;
       _error.value = '';
 
-      await _apiClient.post('/auth/verify-email', data: {
+      final response = await _dioClient.dio.post('/auth/verify-email/', data: {
         'token': token,
       });
 
-      _isEmailVerified.value = true;
+      if (response.statusCode == 200) {
+        _isEmailVerified.value = true;
+        Get.snackbar(
+          'Success',
+          'Email verified successfully',
+          snackPosition: SnackPosition.BOTTOM,
+          backgroundColor: Colors.green,
+          colorText: Colors.white,
+        );
+      }
+    } catch (e) {
       Get.snackbar(
-        'Success',
-        'Email verified successfully',
+        'Email Verification Error',
+        e.toString(),
         snackPosition: SnackPosition.BOTTOM,
-        backgroundColor: Colors.green,
-        colorText: Colors.white,
       );
-    } catch (e, stackTrace) {
-      _handleAuthError(e, stackTrace, 'Email verification error');
     } finally {
       _isLoading.value = false;
     }
@@ -179,7 +208,7 @@ class AuthController extends GetxController {
 
   Future<void> sendVerificationEmail() async {
     try {
-      await _apiClient.post('/auth/send-verification-email');
+      await _dioClient.dio.post('/auth/send-verification-email/');
       Get.snackbar(
         'Success',
         'Verification email sent',
@@ -187,8 +216,8 @@ class AuthController extends GetxController {
         backgroundColor: Colors.green,
         colorText: Colors.white,
       );
-    } catch (e, stackTrace) {
-      LoggerUtils.error('Error sending verification email', e, stackTrace);
+    } catch (e) {
+      LoggerUtils.error('Error sending verification email', e);
     }
   }
 
@@ -197,19 +226,25 @@ class AuthController extends GetxController {
       _isLoading.value = true;
       _error.value = '';
 
-      await _apiClient.post('/auth/reset-password', data: {
+      final response = await _dioClient.dio.post('/auth/reset-password/', data: {
         'email': email,
       });
 
+      if (response.statusCode == 200) {
+        Get.snackbar(
+          'Success',
+          'Password reset instructions sent to your email',
+          snackPosition: SnackPosition.BOTTOM,
+          backgroundColor: Colors.green,
+          colorText: Colors.white,
+        );
+      }
+    } catch (e) {
       Get.snackbar(
-        'Success',
-        'Password reset instructions sent to your email',
+        'Password Reset Error',
+        e.toString(),
         snackPosition: SnackPosition.BOTTOM,
-        backgroundColor: Colors.green,
-        colorText: Colors.white,
       );
-    } catch (e, stackTrace) {
-      _handleAuthError(e, stackTrace, 'Password reset error');
     } finally {
       _isLoading.value = false;
     }
@@ -220,21 +255,27 @@ class AuthController extends GetxController {
       _isLoading.value = true;
       _error.value = '';
 
-      await _apiClient.post('/auth/reset-password-confirm', data: {
+      final response = await _dioClient.dio.post('/auth/reset-password-confirm/', data: {
         'token': token,
         'new_password': newPassword,
       });
 
+      if (response.statusCode == 200) {
+        Get.snackbar(
+          'Success',
+          'Password reset successful. Please login with your new password.',
+          snackPosition: SnackPosition.BOTTOM,
+          backgroundColor: Colors.green,
+          colorText: Colors.white,
+        );
+        Get.offAllNamed('/login');
+      }
+    } catch (e) {
       Get.snackbar(
-        'Success',
-        'Password reset successful. Please login with your new password.',
+        'Password Reset Confirmation Error',
+        e.toString(),
         snackPosition: SnackPosition.BOTTOM,
-        backgroundColor: Colors.green,
-        colorText: Colors.white,
       );
-      Get.offAllNamed('/login');
-    } catch (e, stackTrace) {
-      _handleAuthError(e, stackTrace, 'Password reset confirmation error');
     } finally {
       _isLoading.value = false;
     }
@@ -245,14 +286,19 @@ class AuthController extends GetxController {
       _isLoading.value = true;
       _error.value = '';
 
-      await _apiClient.post('/auth/forgot-password', data: {
+      final response = await _dioClient.dio.post('/auth/forgot-password/', data: {
         'email': email,
       });
 
-      // No need to handle response data since we just show success message
-    } catch (e, stackTrace) {
-      _handleAuthError(e, stackTrace, 'Password reset');
-      rethrow;
+      if (response.statusCode == 200) {
+        // No need to handle response data since we just show success message
+      }
+    } catch (e) {
+      Get.snackbar(
+        'Password Reset Error',
+        e.toString(),
+        snackPosition: SnackPosition.BOTTOM,
+      );
     } finally {
       _isLoading.value = false;
     }
@@ -261,18 +307,25 @@ class AuthController extends GetxController {
   Future<void> toggle2FA() async {
     try {
       _isLoading.value = true;
-      final response = await _apiClient.post('/auth/toggle-2fa');
-      _is2FAEnabled.value = response.data['is_2fa_enabled'];
+      final response = await _dioClient.dio.post('/auth/toggle-2fa/');
 
+      if (response.statusCode == 200) {
+        _is2FAEnabled.value = response.data['is_2fa_enabled'];
+
+        Get.snackbar(
+          'Success',
+          _is2FAEnabled.value ? '2FA enabled' : '2FA disabled',
+          snackPosition: SnackPosition.BOTTOM,
+          backgroundColor: Colors.green,
+          colorText: Colors.white,
+        );
+      }
+    } catch (e) {
       Get.snackbar(
-        'Success',
-        _is2FAEnabled.value ? '2FA enabled' : '2FA disabled',
+        '2FA Toggle Error',
+        e.toString(),
         snackPosition: SnackPosition.BOTTOM,
-        backgroundColor: Colors.green,
-        colorText: Colors.white,
       );
-    } catch (e, stackTrace) {
-      _handleAuthError(e, stackTrace, '2FA toggle error');
     } finally {
       _isLoading.value = false;
     }
@@ -281,14 +334,23 @@ class AuthController extends GetxController {
   Future<void> verify2FA(String code, String email) async {
     try {
       _isLoading.value = true;
-      final response = await _apiClient.post('/auth/verify-2fa', data: {
+      final response = await _dioClient.dio.post('/auth/verify-2fa/', data: {
         'code': code,
         'email': email,
       });
 
-      await _handleAuthResponse(response.data);
-    } catch (e, stackTrace) {
-      _handleAuthError(e, stackTrace, '2FA verification error');
+      if (response.statusCode == 200) {
+        final tokens = response.data;
+        await StorageUtils.saveAccessToken(tokens['access']);
+        await StorageUtils.saveRefreshToken(tokens['refresh']);
+        await checkAuthStatus();
+      }
+    } catch (e) {
+      Get.snackbar(
+        '2FA Verification Error',
+        e.toString(),
+        snackPosition: SnackPosition.BOTTOM,
+      );
     } finally {
       _isLoading.value = false;
     }
@@ -296,21 +358,27 @@ class AuthController extends GetxController {
 
   Future<void> getSecurityStatus() async {
     try {
-      final response = await _apiClient.get('/auth/security-status');
-      _securityStatus.value = response.data;
-      _is2FAEnabled.value = response.data['is_2fa_enabled'] ?? false;
-      _isEmailVerified.value = response.data['is_email_verified'] ?? false;
-    } catch (e, stackTrace) {
-      LoggerUtils.error('Error fetching security status', e, stackTrace);
+      final response = await _dioClient.dio.get('/auth/security-status/');
+
+      if (response.statusCode == 200) {
+        _securityStatus.value = response.data;
+        _is2FAEnabled.value = response.data['is_2fa_enabled'] ?? false;
+        _isEmailVerified.value = response.data['is_email_verified'] ?? false;
+      }
+    } catch (e) {
+      LoggerUtils.error('Error fetching security status', e);
     }
   }
 
   Future<void> getUserProfile() async {
     try {
-      final response = await _apiClient.get('/auth/profile');
-      _user.value = response.data;
-      _isAuthenticated.value = true;
-      _isEmailVerified.value = response.data['is_email_verified'] ?? false;
+      final response = await _dioClient.dio.get('/auth/profile/');
+
+      if (response.statusCode == 200) {
+        _user.value = response.data;
+        _isAuthenticated.value = true;
+        _isEmailVerified.value = response.data['is_email_verified'] ?? false;
+      }
     } catch (e, stackTrace) {
       LoggerUtils.error('Error fetching user profile', e, stackTrace);
       await logout();
@@ -320,17 +388,24 @@ class AuthController extends GetxController {
   Future<void> updateProfile(Map<String, dynamic> data) async {
     try {
       _isLoading.value = true;
-      await _apiClient.put('/auth/profile', data: data);
-      await getUserProfile();
+      final response = await _dioClient.dio.put('/auth/profile/', data: data);
+
+      if (response.statusCode == 200) {
+        await getUserProfile();
+        Get.snackbar(
+          'Success',
+          'Profile updated successfully',
+          snackPosition: SnackPosition.BOTTOM,
+          backgroundColor: Colors.green,
+          colorText: Colors.white,
+        );
+      }
+    } catch (e) {
       Get.snackbar(
-        'Success',
-        'Profile updated successfully',
+        'Profile Update Error',
+        e.toString(),
         snackPosition: SnackPosition.BOTTOM,
-        backgroundColor: Colors.green,
-        colorText: Colors.white,
       );
-    } catch (e, stackTrace) {
-      _handleAuthError(e, stackTrace, 'Profile update error');
     } finally {
       _isLoading.value = false;
     }
@@ -350,22 +425,8 @@ class AuthController extends GetxController {
     }
   }
 
-  Future<void> _handleAuthResponse(Map<String, dynamic> data) async {
-    try {
-      if (data['access'] != null && data['refresh'] != null) {
-        await StorageUtils.saveToken('access_token', data['access']);
-        await StorageUtils.saveToken('refresh_token', data['refresh']);
-        _isAuthenticated.value = true;
-        await getUserProfile();
-      }
-    } catch (e, stackTrace) {
-      LoggerUtils.error('Error handling auth response', e, stackTrace);
-      rethrow;
-    }
-  }
-
-  void _handleAuthError(dynamic error, StackTrace stackTrace, String context) {
-    LoggerUtils.error(context, error, stackTrace);
+  void _handleAuthError(dynamic error, String context) {
+    LoggerUtils.error(context, error);
     _error.value = 'An error occurred. Please try again.';
   }
 

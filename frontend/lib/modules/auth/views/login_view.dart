@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import '../../../app/config/routes/app_routes.dart';
 import '../controllers/login_controller.dart';
 import '../controllers/auth_controller.dart';
 import 'widgets/index.dart';
@@ -23,8 +24,9 @@ class _LoginViewState extends State<LoginView> {
       await controller.login();
       if (!mounted) return;
 
+      final authController = Get.find<AuthController>();
       // Only show success if the login actually succeeded
-      if (Get.find<AuthController>().isAuthenticated) {
+      if (authController.isAuthenticated) {
         scaffoldContext.showSnackBar(
           SnackBar(
             content: const Text('Login successful!'),
@@ -38,6 +40,11 @@ class _LoginViewState extends State<LoginView> {
             ),
           ),
         );
+        
+        // Wait for the snackbar to be visible before navigation
+        await Future.delayed(const Duration(milliseconds: 500));
+        // Navigate to home_view
+        Get.offAllNamed(AppRoutes.home);
       }
     } catch (e) {
       if (!mounted) return;

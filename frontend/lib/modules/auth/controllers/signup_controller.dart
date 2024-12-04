@@ -1,12 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'dart:async';
-import '../../../core/services/api/api_client.dart';
+import '../../../core/network/dio_client.dart';
 import 'auth_controller.dart';
 
 class SignupController extends GetxController {
   final AuthController _authController = Get.find<AuthController>();
-  final ApiClient _apiClient = Get.find<ApiClient>();
+  final DioClient _dioClient = Get.find<DioClient>();
   
   final nameController = TextEditingController();
   final emailController = TextEditingController();
@@ -97,7 +97,7 @@ class SignupController extends GetxController {
       _isCheckingEmail.value = true;
       _emailError.value = '';
       
-      final response = await _apiClient.get('/auth/check-email/', queryParameters: {
+      final response = await _dioClient.dio.get('/auth/check-email/', queryParameters: {
         'email': email,
       });
 

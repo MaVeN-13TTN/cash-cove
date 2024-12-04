@@ -4,6 +4,7 @@ import '../../../core/widgets/app_text_field.dart';
 import '../controllers/auth_controller.dart';
 import '../controllers/signup_controller.dart';
 import 'widgets/index.dart';
+import '../../../app/config/routes/app_routes.dart';
 
 class SignupView extends StatefulWidget {
   const SignupView({Key? key}) : super(key: key);
@@ -44,8 +45,8 @@ class _SignupViewState extends State<SignupView> {
       if (!mounted) return;
 
       // Show the actual error from the backend
-      final errorMessage = controller.error.isNotEmpty 
-          ? controller.error 
+      final errorMessage = controller.error.isNotEmpty
+          ? controller.error
           : 'Registration failed. Please try again.';
 
       scaffoldContext.showSnackBar(
@@ -236,7 +237,7 @@ class _SignupViewState extends State<SignupView> {
                       style: Theme.of(context).textTheme.bodyMedium,
                     ),
                     TextButton(
-                      onPressed: () => Get.back(),
+                      onPressed: () => Get.toNamed(AppRoutes.login),
                       child: const Text('Log In'),
                     ),
                   ],
