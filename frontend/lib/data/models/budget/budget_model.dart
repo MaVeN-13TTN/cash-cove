@@ -1,23 +1,54 @@
 import 'package:json_annotation/json_annotation.dart';
+import 'package:hive/hive.dart';
 
 part 'budget_model.g.dart';
 
 @JsonSerializable()
-class BudgetModel {
+@HiveType(typeId: 0)
+class BudgetModel extends HiveObject {
+  @HiveField(0)
   final String id;
+  
+  @HiveField(1)
   final String userId;
+  
+  @HiveField(2)
   final String name;
+  
+  @HiveField(3)
   final double amount;
+  
+  @HiveField(4)
   final String currency;
+  
+  @HiveField(5)
   final DateTime startDate;
+  
+  @HiveField(6)
   final DateTime endDate;
+  
+  @HiveField(7)
   final String category;
+  
+  @HiveField(8)
   final double spentAmount;
+  
+  @HiveField(9)
   final DateTime createdAt;
+  
+  @HiveField(10)
   final DateTime updatedAt;
+  
+  @HiveField(11)
   final String color;
+  
+  @HiveField(12)
   final String recurrence;
+  
+  @HiveField(13)
   final double notificationThreshold;
+  
+  @HiveField(14)
   final String description;
 
   BudgetModel({

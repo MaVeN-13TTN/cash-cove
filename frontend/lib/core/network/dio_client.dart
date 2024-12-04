@@ -14,6 +14,7 @@ import 'interceptors/trailing_slash_interceptor.dart';
 class DioClient extends GetxService {
   late dio_client.Dio _dio;
   dio_client.Dio get dio => _dio;
+  String get baseUrl => _dio.options.baseUrl;
 
   static DioClient? _instance;
 
@@ -130,5 +131,45 @@ class DioClient extends GetxService {
     }
   }
 
-  // Add other HTTP methods (put, delete, etc.) similarly
+  Future<dio_client.Response> put(
+    String path, {
+    dynamic data,
+    Map<String, dynamic>? queryParameters,
+    dio_client.Options? options,
+    dio_client.CancelToken? cancelToken,
+  }) async {
+    try {
+      final response = await _dio.put(
+        path,
+        data: data,
+        queryParameters: queryParameters,
+        options: options,
+        cancelToken: cancelToken,
+      );
+      return response;
+    } on dio_client.DioException catch (e) {
+      _handleError(e);
+      rethrow;
+    }
+  }
+
+  Future<dio_client.Response> delete(
+    String path, {
+    Map<String, dynamic>? queryParameters,
+    dio_client.Options? options,
+    dio_client.CancelToken? cancelToken,
+  }) async {
+    try {
+      final response = await _dio.delete(
+        path,
+        queryParameters: queryParameters,
+        options: options,
+        cancelToken: cancelToken,
+      );
+      return response;
+    } on dio_client.DioException catch (e) {
+      _handleError(e);
+      rethrow;
+    }
+  }
 }

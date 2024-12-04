@@ -1,13 +1,17 @@
 import 'package:hive_flutter/hive_flutter.dart';
+import '../../core/services/hive_service.dart';
 import '../models/budget/budget_model.dart';
 import '../providers/budget_provider.dart';
 
 class BudgetRepository {
   final BudgetProvider _budgetProvider;
-  final Box<BudgetModel> _localCache;
-  static const String _cacheBoxName = 'budgets';
+  late final Box<BudgetModel> _localCache;
 
-  BudgetRepository(this._budgetProvider) : _localCache = Hive.box<BudgetModel>(_cacheBoxName);
+  BudgetRepository(this._budgetProvider);
+
+  Future<void> init() async {
+    _localCache = await HiveService().getBudgetsBox();
+  }
 
   Future<List<BudgetModel>> getBudgets({bool forceRefresh = false}) async {
     try {

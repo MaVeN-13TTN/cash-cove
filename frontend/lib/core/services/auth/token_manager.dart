@@ -11,7 +11,7 @@ class TokenManager {
   static const String _tokenKey = 'auth_token';
   static const String _refreshTokenKey = 'refresh_token';
   static const Duration _refreshThreshold = Duration(minutes: 5);
-  
+
   final SecureStorage _storage;
   final Box<int> _blacklistBox;
   final _tokenStreamController = StreamController<String?>.broadcast();
@@ -30,8 +30,44 @@ class TokenManager {
         _blacklistBox = blacklistBox;
 
   static Future<TokenManager> initialize(SecureStorage storage) async {
-    final box = await Hive.openBox<int>(_blacklistBoxName);
-    return TokenManager(storage: storage, blacklistBox: box);
+    try {
+      if (!Hive.isBoxOpen(_blacklistBoxName)) {
+        throw HiveError('Token blacklist box must be initialized before TokenManager');
+      }
+
+      final box = Hive.box<int>(_blacklistBoxName);
+      return TokenManager(storage: storage, blacklistBox: box);
+    } catch (e) {
+      throw HiveError('Failed to initialize token blacklist: $e');
+    }
+  }
+
+  int _hashToken(String token) {
+    // Fix potential hash collisions by using string hash directly
+    final bytes = utf8.encode(token);
+    final digest = sha256.convert(bytes);
+    return digest.bytes.sublist(0, 8).fold<int>(0, (a, b) => (a << 8) | b);
+  }
+
+  Future<void> cleanupBlacklist() async {
+    final now = DateTime.now().millisecondsSinceEpoch;
+    final List<int> expiredHashes = [];
+
+    _blacklistBox.toMap().forEach((hash, expiry) {
+      if (expiry < now) expiredHashes.add(hash);
+    });
+
+    await Future.wait(expiredHashes.map((hash) => _blacklistBox.delete(hash)));
+  }
+
+  Future<void> dispose() async {
+    await cleanupBlacklist();
+    _refreshTimer?.cancel();
+    await _tokenStreamController.close();
+    if (_blacklistBox.isOpen) {
+      await _blacklistBox.compact(); // Optimize storage
+      await _blacklistBox.close();
+    }
   }
 
   Future<void> setTokens({
@@ -67,8 +103,9 @@ class TokenManager {
     // Check if token is expired
     try {
       final decodedToken = JwtDecoder.decode(token);
-      final expiry = DateTime.fromMillisecondsSinceEpoch(decodedToken['exp'] * 1000);
-      
+      final expiry =
+          DateTime.fromMillisecondsSinceEpoch(decodedToken['exp'] * 1000);
+
       if (DateTime.now().isAfter(expiry)) {
         await clearTokens();
         return null;
@@ -97,78 +134,36 @@ class TokenManager {
   Future<void> blacklistToken(String token) async {
     try {
       final decodedToken = JwtDecoder.decode(token);
-      final expiry = DateTime.fromMillisecondsSinceEpoch(decodedToken['exp'] * 1000);
-      
-      // Store token hash in blacklist with expiry
-      await _blacklistBox.put(
-        _hashToken(token),
-        expiry.millisecondsSinceEpoch,
-      );
+      final expiry =
+          DateTime.fromMillisecondsSinceEpoch(decodedToken['exp'] * 1000);
 
-      // Clear if it's the current token
-      final currentToken = await getAccessToken();
-      if (currentToken == token) {
-        await clearTokens();
-      }
-    } catch (e, stackTrace) {
-      LoggerUtils.error('Failed to blacklist token', e, stackTrace);
+      final hash = _hashToken(token);
+      await _blacklistBox.put(hash, expiry.millisecondsSinceEpoch);
+    } catch (e) {
+      LoggerUtils.error('Failed to blacklist token', e);
     }
   }
 
   Future<bool> isTokenBlacklisted(String token) async {
     final hash = _hashToken(token);
     final expiry = _blacklistBox.get(hash);
-    
+
     if (expiry == null) return false;
-    
+
     // Remove expired entries
     if (DateTime.now().millisecondsSinceEpoch > expiry) {
       await _blacklistBox.delete(hash);
       return false;
     }
-    
+
     return true;
   }
 
-  Future<void> cleanupBlacklist() async {
-    final now = DateTime.now().millisecondsSinceEpoch;
-    final expiredKeys = _blacklistBox.keys.where(
-      (key) => (_blacklistBox.get(key) ?? 0) < now,
-    );
-    
-    await Future.wait(
-      expiredKeys.map((key) => _blacklistBox.delete(key)),
-    );
-  }
-
-  Future<Map<String, dynamic>> getTokenInfo(String token) async {
-    try {
-      final decodedToken = JwtDecoder.decode(token);
-      final expiry = DateTime.fromMillisecondsSinceEpoch(decodedToken['exp'] * 1000);
-      final issuedAt = DateTime.fromMillisecondsSinceEpoch(decodedToken['iat'] * 1000);
-      
-      return {
-        'isExpired': DateTime.now().isAfter(expiry),
-        'isBlacklisted': await isTokenBlacklisted(token),
-        'expiresAt': expiry.toIso8601String(),
-        'issuedAt': issuedAt.toIso8601String(),
-        'claims': decodedToken,
-      };
-    } catch (e) {
-      return {
-        'error': 'Invalid token format',
-        'isExpired': true,
-        'isBlacklisted': false,
-      };
-    }
-  }
-
   void _scheduleTokenRefresh(String token) {
-    _refreshTimer?.cancel();
-
     try {
       final decodedToken = JwtDecoder.decode(token);
-      final expiry = DateTime.fromMillisecondsSinceEpoch(decodedToken['exp'] * 1000);
+      final expiry =
+          DateTime.fromMillisecondsSinceEpoch(decodedToken['exp'] * 1000);
       final refreshAt = expiry.subtract(_refreshThreshold);
       final now = DateTime.now();
 
@@ -185,15 +180,36 @@ class TokenManager {
     }
   }
 
-  int _hashToken(String token) {
-    final bytes = utf8.encode(token);
-    final digest = sha256.convert(bytes);
-    return digest.toString().hashCode;
+  Future<void> refreshTokens() async {
+    if (_isRefreshing) return;
+    _isRefreshing = true;
+
+    try {
+      // Refresh logic here
+      final refreshToken = await getRefreshToken();
+      if (refreshToken == null) throw Exception('No refresh token available');
+
+      // Call API to refresh tokens
+      // Assume refreshTokensAPI returns a Map with new tokens
+      final newTokens = await refreshTokensAPI(refreshToken);
+      await setTokens(
+        accessToken: newTokens['accessToken']!,
+        refreshToken: newTokens['refreshToken']!,
+      );
+    } catch (e) {
+      // Handle refresh error
+      await clearTokens();
+    } finally {
+      _isRefreshing = false;
+    }
   }
 
-  Future<void> dispose() async {
-    await _tokenStreamController.close();
-    _refreshTimer?.cancel();
-    await _blacklistBox.close();
+  Future<Map<String, String>> refreshTokensAPI(String refreshToken) async {
+    // Mock API call
+    await Future.delayed(const Duration(seconds: 2));
+    return {
+      'accessToken': 'new_access_token',
+      'refreshToken': 'new_refresh_token',
+    };
   }
 }

@@ -11,7 +11,7 @@ import '../../modules/auth/controllers/auth_controller.dart';
 
 class InitialBinding extends Bindings {
   @override
-  void dependencies() async {
+  Future<void> dependencies() async {
     // Global Navigator Key
     final navigatorKey = GlobalKey<NavigatorState>();
     Get.put(navigatorKey, permanent: true);

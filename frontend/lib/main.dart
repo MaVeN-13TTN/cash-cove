@@ -1,44 +1,78 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:hive_flutter/hive_flutter.dart';
+import 'package:dio/dio.dart';
 
 import 'app/config/routes/app_pages.dart';
-
 import 'app/bindings/initial_binding.dart';
 import 'core/network/dio_client.dart';
+import 'core/network/dio_api_adapter.dart';
 import 'core/services/auth/token_manager.dart';
 import 'core/services/storage/secure_storage.dart';
+import 'core/services/hive_service.dart';
+import 'data/repositories/budget_repository.dart';
+import 'data/providers/budget_provider.dart';
 import 'modules/auth/controllers/auth_controller.dart';
+import 'core/services/auth/auth_service.dart'; // Corrected import path
+import 'core/widgets/dialogs/dialog_service.dart'; // Corrected import path
 
 const String baseUrl = 'http://127.0.0.1:8000/api/v1';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  // Initialize Hive
-  await Hive.initFlutter();
-  await Hive.openBox('app_storage');
-  await Hive.openBox('blacklist_storage');
-  await Hive.openBox<String>('offline_requests');
-  await Hive.openBox('budgets'); // Open the budgets box
+  // Initialize Hive using the centralized HiveService
+  final hiveService = HiveService();
+  await hiveService.initializeHive();
 
-  // Initialize GetX bindings first
-  Get.put(InitialBinding());
-  InitialBinding().dependencies();
-
-  // Initialize SecureStorage
+  // Initialize SecureStorage first
   final secureStorage = await SecureStorage.initialize();
   Get.put(secureStorage);
 
-  // Initialize TokenManager
-  await Get.putAsync<TokenManager>(
-      () async => await TokenManager.initialize(secureStorage));
+  // Initialize TokenManager before other boxes
+  await hiveService.getTokenBlacklistBox(); // Ensure box is initialized
+  final tokenManager = await TokenManager.initialize(secureStorage);
+  Get.put(tokenManager);
+
+  // Open other necessary boxes
+  await hiveService.getAppStorageBox();
+  await hiveService.getBlacklistStorageBox();
+  await hiveService.getOfflineRequestsBox();
+  await hiveService.getBudgetsBox();
+
+  // Initialize GetX bindings
+  Get.put(InitialBinding());
+  InitialBinding().dependencies();
+
+  // Global Navigator Key
+  final navigatorKey = GlobalKey<NavigatorState>();
+  Get.put(navigatorKey, permanent: true);
+
+  // Initialize Dio
+  final dio = Dio();
+
+  // Initialize DialogService
+  final dialogService = DialogService(navigatorKey: navigatorKey);
+  Get.put<DialogService>(dialogService);
+
+  // Initialize AuthService BEFORE DioClient
+  final authService = AuthService(
+    dio: dio,
+    storage: secureStorage,
+  );
+  Get.put<AuthService>(authService);
 
   // Initialize DioClient
   await Get.putAsync<DioClient>(() async => await DioClient.initialize(
         baseUrl: baseUrl,
-        tokenManager: Get.find<TokenManager>(),
+        tokenManager: tokenManager,
       ));
+
+  // Initialize BudgetProvider with DioApiAdapter
+  final dioApiAdapter = DioApiAdapter(Get.find<DioClient>());
+  final budgetProvider = BudgetProvider(dioApiAdapter);
+  final budgetRepository = BudgetRepository(budgetProvider);
+  await budgetRepository.init(); // Initialize the repository
+  Get.put(budgetRepository);
 
   // Initialize AuthController
   Get.put(AuthController(
