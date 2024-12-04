@@ -9,6 +9,7 @@ from rest_framework.response import Response
 from rest_framework.request import Request
 from django.contrib.auth import get_user_model
 from django.utils.translation import gettext_lazy as _
+from django.utils import timezone
 
 from ..serializers.users_serializer import (
     UserSerializer,
@@ -25,6 +26,7 @@ from ..services.auth_service import AuthService
 from ..services.users_service import UserService
 from ..services.profile_service import ProfileService
 from ..models import Profile
+from rest_framework_simplejwt.tokens import RefreshToken
 
 User = get_user_model()
 
@@ -53,7 +55,13 @@ class UserViewSet(viewsets.ModelViewSet):
 
     def get_permissions(self):
         """Get appropriate permissions."""
-        if self.action in ["create", "reset_password", "check_email", "register", "login"]:
+        if self.action in [
+            "create",
+            "reset_password",
+            "check_email",
+            "register",
+            "login",
+        ]:
             return [AllowAny()]
         return super().get_permissions()
 
@@ -161,11 +169,47 @@ class UserViewSet(viewsets.ModelViewSet):
 
     @action(detail=False, methods=["get"])
     def profile(self, request: Request) -> Response:
-        """Get user profile."""
-        user = request.user
-        return Response(UserSerializer(user).data)
+        """
+        Get or create user profile.
+        
+        This method ensures a profile exists for the current user
+        and returns the profile data.
+        """
+        # Ensure profile exists
+        profile, created = Profile.objects.get_or_create(user=request.user)
+        
+        # Use the profile serializer to represent the profile
+        serializer = ProfileSerializer(profile, context={'request': request})
+        
+        # If profile was just created, add a flag to indicate first-time setup
+        response_data = serializer.data
+        response_data['is_first_login'] = created
+        
+        return Response(response_data)
 
-    @action(detail=True, methods=["post"])
+    @action(detail=False, methods=["get"])
+    def security_status(self, request: Request) -> Response:
+        """
+        Get security status for the current user.
+        
+        Returns comprehensive security information, 
+        creating a profile if it doesn't exist.
+        """
+        # Ensure profile exists
+        profile, created = Profile.objects.get_or_create(user=request.user)
+        
+        # Prepare security status
+        security_status = {
+            "two_factor_enabled": profile.two_factor_enabled,
+            "email_verified": request.user.is_active,
+            "is_first_login": created,
+            "activity_status": "inactive" if created else ProfileSerializer(profile).get_activity_status(profile),
+            "security_score": 0 if created else ProfileSerializer(profile).get_security_score(profile)
+        }
+        
+        return Response(security_status)
+
+    @action(detail=False, methods=["post"])
     def deactivate(self, request: Request) -> Response:
         """Deactivate user account."""
         password = request.data.get("password")
@@ -179,6 +223,18 @@ class UserViewSet(viewsets.ModelViewSet):
             return Response({"message": _("Account deactivated successfully")})
         except Exception as e:
             return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+
+    @action(detail=False, methods=["put"])
+    def update_profile(self, request: Request) -> Response:
+        """Update user profile."""
+        profile = ProfileService.get_or_create_profile(request.user)
+        serializer = ProfileSerializer(profile, data=request.data, partial=True)
+        
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data)
+        
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
 class ProfileViewSet(viewsets.ModelViewSet):
@@ -211,3 +267,148 @@ class ProfileViewSet(viewsets.ModelViewSet):
                 "message": _("2FA enabled" if new_status else "2FA disabled"),
             }
         )
+
+
+class SecurityStatusViewSet(viewsets.ViewSet):
+    """
+    ViewSet for managing user security status.
+    """
+
+    permission_classes = [IsAuthenticated]
+
+    def list(self, request: Request) -> Response:
+        """Return security status for the current user."""
+        profile = ProfileService.get_or_create_profile(request.user)
+        security_status = {
+            "two_factor_enabled": profile.two_factor_enabled,
+            "email_verified": request.user.is_active,  # Adjust based on your email verification logic
+        }
+        return Response(security_status)
+
+
+class RegisterView(generics.CreateAPIView):
+    """
+    View for user registration.
+    """
+    serializer_class = UserCreateSerializer
+    permission_classes = [AllowAny]
+
+    def create(self, request: Request, *args, **kwargs) -> Response:
+        """
+        Handle user registration.
+        
+        Creates a new user and returns user details and token.
+        """
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        user = serializer.save()
+        
+        # Generate tokens for the new user
+        token_serializer = TokenSerializer(data={'user': user})
+        token_serializer.is_valid(raise_exception=True)
+        
+        return Response({
+            'user': UserSerializer(user).data,
+            'tokens': token_serializer.validated_data
+        }, status=status.HTTP_201_CREATED)
+
+
+class VerifyEmailView(generics.GenericAPIView):
+    """
+    View for email verification.
+    """
+    serializer_class = EmailVerificationSerializer
+    permission_classes = [AllowAny]
+
+    def post(self, request: Request) -> Response:
+        """
+        Verify user's email using provided token.
+        """
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        
+        # Verify email and activate user
+        user = serializer.save()
+        
+        return Response({
+            'detail': _('Email verified successfully.'),
+            'user': UserSerializer(user).data
+        }, status=status.HTTP_200_OK)
+
+
+class ResetPasswordView(generics.GenericAPIView):
+    """
+    View for initiating password reset.
+    """
+    serializer_class = PasswordResetSerializer
+    permission_classes = [AllowAny]
+
+    def post(self, request: Request) -> Response:
+        """
+        Initiate password reset process.
+        
+        Sends password reset instructions to user's email.
+        """
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        
+        # Send password reset instructions
+        serializer.save()
+        
+        return Response({
+            'detail': _('Password reset instructions sent to your email.')
+        }, status=status.HTTP_200_OK)
+
+
+class ResetPasswordConfirmView(generics.GenericAPIView):
+    """
+    View for confirming password reset.
+    """
+    serializer_class = PasswordResetConfirmSerializer
+    permission_classes = [AllowAny]
+
+    def post(self, request: Request) -> Response:
+        """
+        Confirm password reset using token and new password.
+        """
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        
+        # Reset password
+        serializer.save()
+        
+        return Response({
+            'detail': _('Password reset successful.')
+        }, status=status.HTTP_200_OK)
+
+
+class CustomTokenObtainPairView(generics.GenericAPIView):
+    """
+    Custom token obtain view to handle login with our custom validation.
+    """
+    serializer_class = LoginSerializer
+    permission_classes = [AllowAny]
+
+    def post(self, request: Request) -> Response:
+        """
+        Handle token generation for login.
+        
+        Validates credentials and generates JWT tokens.
+        """
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        
+        user = serializer.validated_data['user']
+        
+        # Generate tokens
+        refresh = RefreshToken.for_user(user)
+        
+        # Update last login
+        user.last_login = timezone.now()
+        user.save(update_fields=['last_login'])
+        
+        return Response({
+            'refresh': str(refresh),
+            'access': str(refresh.access_token),
+            'user': UserSerializer(user).data
+        }, status=status.HTTP_200_OK)

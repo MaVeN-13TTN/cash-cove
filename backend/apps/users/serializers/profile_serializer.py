@@ -6,6 +6,7 @@ from rest_framework import serializers
 from django.utils.translation import gettext_lazy as _
 from ..models import Profile
 from typing import Dict
+from django.utils import timezone
 
 
 class ProfileSerializer(serializers.ModelSerializer):
@@ -57,37 +58,45 @@ class ProfileSerializer(serializers.ModelSerializer):
         return value
 
     def get_activity_status(self, obj: Profile) -> str:
-        """Get user's activity status."""
-        from django.utils import timezone
-        from datetime import timedelta
-
-        last_login = obj.user.last_login
-        if not last_login:
-            return "inactive"
-
-        days_since_login = (timezone.now() - last_login).days
-
-        if days_since_login < 7:
-            return "active"
-        elif days_since_login < 30:
-            return "semi-active"
-        return "inactive"
+        """
+        Determine user activity status based on login history.
+        
+        Returns:
+        - 'active': Logged in recently (within last 7 days)
+        - 'inactive': No recent login
+        """
+        if not obj.user.last_login:
+            return 'inactive'
+        
+        days_since_login = (timezone.now() - obj.user.last_login).days
+        return 'active' if days_since_login <= 7 else 'inactive'
 
     def get_security_score(self, obj: Profile) -> int:
-        """Calculate security score based on profile settings."""
+        """
+        Calculate a security score based on user's security settings.
+        
+        Scoring:
+        - Two-factor authentication: +50 points
+        - Email verified: +30 points
+        - Recent activity: +20 points
+        
+        Maximum score: 100
+        """
         score = 0
-
-        # Basic security measures
-        if obj.user.is_verified:
-            score += 30
+        
+        # Two-factor authentication
         if obj.two_factor_enabled:
-            score += 40
-        if obj.user.has_usable_password():  # Not using social auth only
+            score += 50
+        
+        # Email verification
+        if obj.user.is_active:
+            score += 30
+        
+        # Recent activity
+        if self.get_activity_status(obj) == 'active':
             score += 20
-        if obj.notification_emails:  # Can receive security notifications
-            score += 10
-
-        return score
+        
+        return min(score, 100)
 
     def to_representation(self, instance: Profile) -> Dict:
         """Customize profile representation."""
