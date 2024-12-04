@@ -6,14 +6,15 @@ import 'app/config/routes/app_pages.dart';
 import 'app/bindings/initial_binding.dart';
 import 'core/network/dio_client.dart';
 import 'core/network/dio_api_adapter.dart';
-import 'core/services/auth/token_manager.dart';
+import 'core/services/auth/auth_service.dart'; // Corrected import path for AuthService
 import 'core/services/storage/secure_storage.dart';
 import 'core/services/hive_service.dart';
 import 'data/repositories/budget_repository.dart';
 import 'data/providers/budget_provider.dart';
 import 'modules/auth/controllers/auth_controller.dart';
-import 'core/services/auth/auth_service.dart'; // Corrected import path
-import 'core/widgets/dialogs/dialog_service.dart'; // Corrected import path
+import 'core/services/auth/token_manager.dart';
+import 'core/widgets/dialogs/dialog_service.dart'; 
+import 'core/services/api/api_client.dart'; 
 
 const String baseUrl = 'http://127.0.0.1:8000/api/v1';
 
@@ -24,20 +25,22 @@ void main() async {
   final hiveService = HiveService();
   await hiveService.initializeHive();
 
+  // Open necessary boxes
+  await hiveService.getTokenBlacklistBox();
+  await hiveService.getAppStorageBox();
+  await hiveService.getBlacklistStorageBox();
+  await hiveService.getOfflineRequestsBox();
+  await hiveService.getBudgetsBox();
+  await hiveService.getTransactionsBox();
+  await hiveService.getExpensesBox();  // Initialize expenses box
+
   // Initialize SecureStorage first
   final secureStorage = await SecureStorage.initialize();
   Get.put(secureStorage);
 
   // Initialize TokenManager before other boxes
-  await hiveService.getTokenBlacklistBox(); // Ensure box is initialized
   final tokenManager = await TokenManager.initialize(secureStorage);
   Get.put(tokenManager);
-
-  // Open other necessary boxes
-  await hiveService.getAppStorageBox();
-  await hiveService.getBlacklistStorageBox();
-  await hiveService.getOfflineRequestsBox();
-  await hiveService.getBudgetsBox();
 
   // Initialize GetX bindings
   Get.put(InitialBinding());
@@ -50,16 +53,23 @@ void main() async {
   // Initialize Dio
   final dio = Dio();
 
-  // Initialize DialogService
-  final dialogService = DialogService(navigatorKey: navigatorKey);
-  Get.put<DialogService>(dialogService);
-
   // Initialize AuthService BEFORE DioClient
   final authService = AuthService(
     dio: dio,
     storage: secureStorage,
   );
   Get.put<AuthService>(authService);
+
+  // Initialize DialogService
+  final dialogService = DialogService(navigatorKey: navigatorKey);
+  Get.put<DialogService>(dialogService);
+
+  // Initialize ApiClient
+  final apiClient = await ApiClient.initialize(
+    baseUrl: baseUrl,
+    tokenManager: tokenManager,
+  );
+  Get.put<ApiClient>(apiClient);
 
   // Initialize DioClient
   await Get.putAsync<DioClient>(() async => await DioClient.initialize(

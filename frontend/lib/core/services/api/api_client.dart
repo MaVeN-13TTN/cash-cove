@@ -14,6 +14,7 @@ import '../auth/auth_service.dart';
 import '../../widgets/dialogs/dialog_service.dart';
 import 'offline_queue_service.dart';
 import 'token_interceptor.dart';
+import '../hive_service.dart';
 
 class ApiClient extends GetxService {
   late dio_client.Dio _dio;
@@ -72,8 +73,9 @@ class ApiClient extends GetxService {
       final authService = Get.find<AuthService>();
       final dialogService = Get.find<DialogService>();
       
-      // Open Hive box for offline requests
-      final offlineRequestBox = await Hive.openBox<String>('offline_requests');
+      // Get the offline requests box through HiveService
+      final hiveService = HiveService();
+      final offlineRequestBox = await hiveService.getOfflineRequestsBox();
 
       _instance = ApiClient._(
         storage: storage, 

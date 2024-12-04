@@ -1,13 +1,20 @@
 import 'package:hive_flutter/hive_flutter.dart';
 import '../models/expense/expense_model.dart';
 import '../providers/expense_provider.dart';
+import '../../core/services/hive_service.dart';
 
 class ExpenseRepository {
   final ExpenseProvider _expenseProvider;
-  final Box<ExpenseModel> _localCache;
-  static const String _cacheBoxName = 'expenses';
+  late Box<ExpenseModel> _localCache;
 
-  ExpenseRepository(this._expenseProvider) : _localCache = Hive.box<ExpenseModel>(_cacheBoxName);
+  ExpenseRepository(this._expenseProvider) {
+    _initializeBox();
+  }
+
+  Future<void> _initializeBox() async {
+    final hiveService = HiveService();
+    _localCache = await hiveService.getExpensesBox();
+  }
 
   Future<List<ExpenseModel>> getExpenses({
     DateTime? startDate,

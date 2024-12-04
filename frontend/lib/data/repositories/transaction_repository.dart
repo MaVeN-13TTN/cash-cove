@@ -1,14 +1,20 @@
 import 'package:hive_flutter/hive_flutter.dart';
 import '../models/transaction/transaction_model.dart';
 import '../providers/transaction_provider.dart';
+import '../../core/services/hive_service.dart';
 
 class TransactionRepository {
   final TransactionProvider _transactionProvider;
-  final Box<TransactionModel> _localCache;
-  static const String _cacheBoxName = 'transactions';
+  late Box<TransactionModel> _localCache;
 
-  TransactionRepository(this._transactionProvider) 
-    : _localCache = Hive.box<TransactionModel>(_cacheBoxName);
+  TransactionRepository(this._transactionProvider) {
+    _initializeBox();
+  }
+
+  Future<void> _initializeBox() async {
+    final hiveService = HiveService();
+    _localCache = await hiveService.getTransactionsBox();
+  }
 
   Future<List<TransactionModel>> getTransactions({bool forceRefresh = false}) async {
     try {
