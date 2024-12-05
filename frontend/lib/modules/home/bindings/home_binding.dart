@@ -18,7 +18,15 @@ import '../controllers/home_controller.dart';
 import '../../dashboard/controllers/dashboard_controller.dart';
 import '../../budget/controllers/budget_controller.dart';
 import '../../expense/controllers/expense_controller.dart';
-import '../../analytics/controllers/analytics_controller.dart';
+import '../../settings/controllers/settings_controller.dart';
+
+// Import services
+import '../../../core/services/settings/settings_service.dart';
+
+// Import bindings
+import '../../dashboard/bindings/dashboard_binding.dart';
+import '../../budget/bindings/budget_binding.dart';
+import '../../expense/bindings/expense_binding.dart';
 
 class HomeBinding extends Bindings {
   @override
@@ -48,6 +56,13 @@ class HomeBinding extends Bindings {
           Get.find<ExpenseProvider>(),
         ));
 
+    // Initialize settings service if not already initialized
+    if (!Get.isRegistered<SettingsService>()) {
+      final settingsService = SettingsService();
+      settingsService.onInit();
+      Get.put<SettingsService>(settingsService, permanent: true);
+    }
+
     // Core controllers
     Get.lazyPut<HomeController>(() => HomeController());
 
@@ -65,6 +80,12 @@ class HomeBinding extends Bindings {
           repository: Get.find<ExpenseRepository>(),
         ));
 
-    Get.lazyPut<AnalyticsController>(() => AnalyticsController());
+    // Initialize settings controller
+    Get.lazyPut<SettingsController>(() => SettingsController());
+
+    // Apply other bindings
+    DashboardBinding().dependencies();
+    BudgetBinding().dependencies();
+    ExpenseBinding().dependencies();
   }
 }

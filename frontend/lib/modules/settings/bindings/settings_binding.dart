@@ -5,9 +5,11 @@ import '../../../core/services/settings/settings_service.dart';
 class SettingsBinding extends Bindings {
   @override
   void dependencies() {
-    // Initialize settings service if not already initialized
+    // Ensure SettingsService is registered
     if (!Get.isRegistered<SettingsService>()) {
-      Get.put(SettingsService(), permanent: true);
+      final settingsService = SettingsService();
+      settingsService.onInit(); // Synchronous initialization
+      Get.put<SettingsService>(settingsService, permanent: true);
     }
     
     // Initialize settings controller

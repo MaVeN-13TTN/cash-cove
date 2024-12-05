@@ -7,35 +7,46 @@ class BudgetProvider {
   BudgetProvider(this._apiProvider);
 
   Future<List<BudgetModel>> getBudgets() async {
-    final response = await _apiProvider.get('/budgets');
-    return (response['budgets'] as List)
-        .map((json) => BudgetModel.fromJson(json))
-        .toList();
+    try {
+      final response = await _apiProvider.get('/api/v1/budgets/');
+      final List<dynamic> budgets = response['data'] ?? [];
+      return budgets.map((json) => BudgetModel.fromJson(json)).toList();
+    } on ApiException catch (e) {
+      if (e.statusCode == 404) return [];
+      rethrow;
+    }
   }
 
   Future<BudgetModel> getBudget(String id) async {
-    final response = await _apiProvider.get('/budgets/$id');
-    return BudgetModel.fromJson(response['budget']);
+    final response = await _apiProvider.get('/api/v1/budgets/$id/');
+    return BudgetModel.fromJson(response['data']);
   }
 
   Future<BudgetModel> createBudget(Map<String, dynamic> data) async {
-    final response = await _apiProvider.post('/budgets', data);
-    return BudgetModel.fromJson(response['budget']);
+    final response = await _apiProvider.post('/api/v1/budgets/', data);
+    return BudgetModel.fromJson(response['data']);
   }
 
   Future<BudgetModel> updateBudget(String id, Map<String, dynamic> data) async {
-    final response = await _apiProvider.put('/budgets/$id', data);
-    return BudgetModel.fromJson(response['budget']);
+    final response = await _apiProvider.put('/api/v1/budgets/$id/', data);
+    return BudgetModel.fromJson(response['data']);
   }
 
   Future<void> deleteBudget(String id) async {
-    await _apiProvider.delete('/budgets/$id');
+    await _apiProvider.delete('/api/v1/budgets/$id/');
   }
 
   Future<List<BudgetModel>> getBudgetsByCategory(String category) async {
-    final response = await _apiProvider.get('/budgets/category/$category');
-    return (response['budgets'] as List)
-        .map((json) => BudgetModel.fromJson(json))
-        .toList();
+    try {
+      final response = await _apiProvider.get(
+        '/api/v1/budgets/by-category/',
+        queryParameters: {'category': category},
+      );
+      final List<dynamic> budgets = response['data'] ?? [];
+      return budgets.map((json) => BudgetModel.fromJson(json)).toList();
+    } on ApiException catch (e) {
+      if (e.statusCode == 404) return [];
+      rethrow;
+    }
   }
 }

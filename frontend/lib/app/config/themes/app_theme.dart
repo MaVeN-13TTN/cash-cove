@@ -187,6 +187,7 @@ class AppTheme {
       brightness: brightness,
       colorScheme: colorScheme,
       textTheme: textTheme,
+      fontFamily: 'Poppins',
       scaffoldBackgroundColor: colorScheme.surface,
       inputDecorationTheme: _buildInputDecorationTheme(
         colorScheme,

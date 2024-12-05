@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:get/get.dart';
 
 class CustomBottomNavBar extends StatelessWidget {
   final int currentIndex;
@@ -47,9 +46,6 @@ class CustomBottomNavBar extends StatelessWidget {
                 isSelected: currentIndex == 1,
                 onTap: () => onTap(1),
               ),
-              _AddExpenseButton(
-                onTap: () => Get.toNamed('/expenses/create'),
-              ),
               _NavBarItem(
                 icon: Icons.receipt_long_outlined,
                 selectedIcon: Icons.receipt_long,
@@ -58,9 +54,9 @@ class CustomBottomNavBar extends StatelessWidget {
                 onTap: () => onTap(2),
               ),
               _NavBarItem(
-                icon: Icons.analytics_outlined,
-                selectedIcon: Icons.analytics,
-                label: 'Analytics',
+                icon: Icons.settings_outlined,
+                selectedIcon: Icons.settings,
+                label: 'Settings',
                 isSelected: currentIndex == 3,
                 onTap: () => onTap(3),
               ),
@@ -99,12 +95,6 @@ class _NavBarItem extends StatelessWidget {
           horizontal: 12,
           vertical: 8,
         ),
-        decoration: BoxDecoration(
-          color: isSelected
-              ? theme.colorScheme.primaryContainer
-              : Colors.transparent,
-          borderRadius: BorderRadius.circular(16),
-        ),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -112,7 +102,7 @@ class _NavBarItem extends StatelessWidget {
               isSelected ? selectedIcon : icon,
               color: isSelected
                   ? theme.colorScheme.primary
-                  : theme.colorScheme.onSurface,
+                  : theme.colorScheme.onSurface.withOpacity(0.6),
             ),
             const SizedBox(height: 4),
             Text(
@@ -120,45 +110,10 @@ class _NavBarItem extends StatelessWidget {
               style: theme.textTheme.labelSmall?.copyWith(
                 color: isSelected
                     ? theme.colorScheme.primary
-                    : theme.colorScheme.onSurface,
+                    : theme.colorScheme.onSurface.withOpacity(0.6),
               ),
             ),
           ],
-        ),
-      ),
-    );
-  }
-}
-
-class _AddExpenseButton extends StatelessWidget {
-  final VoidCallback onTap;
-
-  const _AddExpenseButton({
-    Key? key,
-    required this.onTap,
-  }) : super(key: key);
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        width: 48,
-        height: 48,
-        decoration: BoxDecoration(
-          color: Theme.of(context).colorScheme.primary,
-          shape: BoxShape.circle,
-          boxShadow: [
-            BoxShadow(
-              color: Theme.of(context).colorScheme.primary.withOpacity(0.3),
-              blurRadius: 8,
-              offset: const Offset(0, 4),
-            ),
-          ],
-        ),
-        child: Icon(
-          Icons.add,
-          color: Theme.of(context).colorScheme.onPrimary,
         ),
       ),
     );

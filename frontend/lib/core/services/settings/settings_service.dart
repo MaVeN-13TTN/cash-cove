@@ -6,8 +6,10 @@ import 'package:shared_preferences/shared_preferences.dart';
 class SettingsService extends GetxService {
   static SettingsService get to => Get.find();
   
-  late final SharedPreferences _prefs;
+  SharedPreferences? _prefs;
   
+  bool get isInitialized => _prefs != null;
+
   // Theme settings
   final Rx<ThemeMode> themeMode = ThemeMode.system.obs;
   
@@ -33,111 +35,200 @@ class SettingsService extends GetxService {
   final RxBool autoRollover = false.obs;
   final RxInt budgetWarningThreshold = 80.obs; // percentage
   
+  SharedPreferences get prefs {
+    if (_prefs == null) {
+      throw StateError('SettingsService not properly initialized');
+    }
+    return _prefs!;
+  }
+
   @override
-  Future<void> onInit() async {
+  void onInit() {
     super.onInit();
-    _prefs = await SharedPreferences.getInstance();
-    await loadSettings();
+    _initializePreferences();
   }
   
-  Future<void> loadSettings() async {
+  void _initializePreferences() {
+    try {
+      if (!Get.isRegistered<SharedPreferences>()) {
+        debugPrint('SharedPreferences not registered yet');
+        return;
+      }
+      if (_prefs != null) {
+        debugPrint('Preferences already initialized');
+        return;
+      }
+      _prefs = Get.find<SharedPreferences>();
+      loadSettings();
+    } catch (e) {
+      debugPrint('Error initializing preferences: $e');
+    }
+  }
+  
+  void loadSettings() {
+    if (_prefs == null) return;
+    
     // Theme settings
     themeMode.value = ThemeMode.values.byName(
-      _prefs.getString('themeMode') ?? ThemeMode.system.name
+      _prefs!.getString('themeMode') ?? ThemeMode.system.name
     );
     
     // Currency settings
-    defaultCurrency.value = _prefs.getString('defaultCurrency') ?? 'USD';
+    defaultCurrency.value = prefs.getString('defaultCurrency') ?? 'USD';
     
     // Notification settings
-    pushNotificationsEnabled.value = _prefs.getBool('pushNotifications') ?? true;
-    emailNotificationsEnabled.value = _prefs.getBool('emailNotifications') ?? true;
-    budgetAlertsEnabled.value = _prefs.getBool('budgetAlerts') ?? true;
-    expenseRemindersEnabled.value = _prefs.getBool('expenseReminders') ?? true;
+    pushNotificationsEnabled.value = prefs.getBool('pushNotifications') ?? true;
+    emailNotificationsEnabled.value = prefs.getBool('emailNotifications') ?? true;
+    budgetAlertsEnabled.value = prefs.getBool('budgetAlerts') ?? true;
+    expenseRemindersEnabled.value = prefs.getBool('expenseReminders') ?? true;
     
     // Privacy settings
-    biometricEnabled.value = _prefs.getBool('biometric') ?? false;
-    analyticsEnabled.value = _prefs.getBool('analytics') ?? true;
+    biometricEnabled.value = prefs.getBool('biometric') ?? false;
+    analyticsEnabled.value = prefs.getBool('analytics') ?? true;
     
     // Display settings
-    dateFormat.value = _prefs.getString('dateFormat') ?? 'dd/MM/yyyy';
-    timeFormat.value = _prefs.getString('timeFormat') ?? '24h';
-    numberFormat.value = _prefs.getString('numberFormat') ?? 'comma';
+    dateFormat.value = prefs.getString('dateFormat') ?? 'dd/MM/yyyy';
+    timeFormat.value = prefs.getString('timeFormat') ?? '24h';
+    numberFormat.value = prefs.getString('numberFormat') ?? 'comma';
     
     // Budget settings
-    autoRollover.value = _prefs.getBool('autoRollover') ?? false;
-    budgetWarningThreshold.value = _prefs.getInt('budgetWarningThreshold') ?? 80;
+    autoRollover.value = prefs.getBool('autoRollover') ?? false;
+    budgetWarningThreshold.value = prefs.getInt('budgetWarningThreshold') ?? 80;
   }
   
-  Future<void> updateThemeMode(ThemeMode mode) async {
+  Future<bool> updateThemeMode(ThemeMode mode) async {
+    await prefs.setString('themeMode', mode.name);
     themeMode.value = mode;
-    await _prefs.setString('themeMode', mode.name);
     Get.changeThemeMode(mode);
+    return true;
   }
   
-  Future<void> updateDefaultCurrency(String currency) async {
+  Future<bool> updateDefaultCurrency(String currency) async {
+    await prefs.setString('defaultCurrency', currency);
     defaultCurrency.value = currency;
-    await _prefs.setString('defaultCurrency', currency);
+    return true;
   }
   
-  Future<void> updatePushNotifications(bool enabled) async {
+  Future<bool> updatePushNotifications(bool enabled) async {
+    await prefs.setBool('pushNotifications', enabled);
     pushNotificationsEnabled.value = enabled;
-    await _prefs.setBool('pushNotifications', enabled);
+    return true;
   }
   
-  Future<void> updateEmailNotifications(bool enabled) async {
+  Future<bool> updateEmailNotifications(bool enabled) async {
+    await prefs.setBool('emailNotifications', enabled);
     emailNotificationsEnabled.value = enabled;
-    await _prefs.setBool('emailNotifications', enabled);
+    return true;
   }
   
-  Future<void> updateBudgetAlerts(bool enabled) async {
+  Future<bool> updateBudgetAlerts(bool enabled) async {
+    await prefs.setBool('budgetAlerts', enabled);
     budgetAlertsEnabled.value = enabled;
-    await _prefs.setBool('budgetAlerts', enabled);
+    return true;
   }
   
-  Future<void> updateExpenseReminders(bool enabled) async {
+  Future<bool> updateExpenseReminders(bool enabled) async {
+    await prefs.setBool('expenseReminders', enabled);
     expenseRemindersEnabled.value = enabled;
-    await _prefs.setBool('expenseReminders', enabled);
+    return true;
   }
   
-  Future<void> updateBiometric(bool enabled) async {
+  Future<bool> updateBiometric(bool enabled) async {
+    await prefs.setBool('biometric', enabled);
     biometricEnabled.value = enabled;
-    await _prefs.setBool('biometric', enabled);
+    return true;
   }
   
-  Future<void> updateAnalytics(bool enabled) async {
+  Future<bool> updateAnalytics(bool enabled) async {
+    await prefs.setBool('analytics', enabled);
     analyticsEnabled.value = enabled;
-    await _prefs.setBool('analytics', enabled);
+    return true;
   }
   
-  Future<void> updateDateFormat(String format) async {
+  Future<bool> updateDateFormat(String format) async {
+    await prefs.setString('dateFormat', format);
     dateFormat.value = format;
-    await _prefs.setString('dateFormat', format);
+    return true;
   }
   
-  Future<void> updateTimeFormat(String format) async {
+  Future<bool> updateTimeFormat(String format) async {
+    await prefs.setString('timeFormat', format);
     timeFormat.value = format;
-    await _prefs.setString('timeFormat', format);
+    return true;
   }
   
-  Future<void> updateNumberFormat(String format) async {
+  Future<bool> updateNumberFormat(String format) async {
+    await prefs.setString('numberFormat', format);
     numberFormat.value = format;
-    await _prefs.setString('numberFormat', format);
+    return true;
   }
   
-  Future<void> updateAutoRollover(bool enabled) async {
+  Future<bool> updateAutoRollover(bool enabled) async {
+    await prefs.setBool('autoRollover', enabled);
     autoRollover.value = enabled;
-    await _prefs.setBool('autoRollover', enabled);
+    return true;
   }
   
-  Future<void> updateBudgetWarningThreshold(int threshold) async {
+  Future<bool> updateBudgetWarningThreshold(int threshold) async {
+    await prefs.setInt('budgetWarningThreshold', threshold);
     budgetWarningThreshold.value = threshold;
-    await _prefs.setInt('budgetWarningThreshold', threshold);
+    return true;
   }
   
-  Future<void> resetSettings() async {
-    await _prefs.clear();
-    await loadSettings();
+  Future<bool> resetSettings() async {
+    try {
+      // Reset theme
+      await prefs.setString('themeMode', ThemeMode.system.name);
+      themeMode.value = ThemeMode.system;
+      Get.changeThemeMode(ThemeMode.system);
+
+      // Reset currency
+      await prefs.setString('defaultCurrency', 'USD');
+      defaultCurrency.value = 'USD';
+
+      // Reset notification settings
+      await prefs.setBool('pushNotifications', true);
+      pushNotificationsEnabled.value = true;
+
+      await prefs.setBool('emailNotifications', true);
+      emailNotificationsEnabled.value = true;
+
+      await prefs.setBool('budgetAlerts', true);
+      budgetAlertsEnabled.value = true;
+
+      await prefs.setBool('expenseReminders', true);
+      expenseRemindersEnabled.value = true;
+
+      // Reset privacy settings
+      await prefs.setBool('biometric', false);
+      biometricEnabled.value = false;
+
+      await prefs.setBool('analytics', true);
+      analyticsEnabled.value = true;
+
+      // Reset display settings
+      await prefs.setString('dateFormat', 'dd/MM/yyyy');
+      dateFormat.value = 'dd/MM/yyyy';
+
+      await prefs.setString('timeFormat', '24h');
+      timeFormat.value = '24h';
+
+      await prefs.setString('numberFormat', 'comma');
+      numberFormat.value = 'comma';
+
+      // Reset budget settings
+      await prefs.setBool('autoRollover', false);
+      autoRollover.value = false;
+
+      await prefs.setInt('budgetWarningThreshold', 80);
+      budgetWarningThreshold.value = 80;
+
+      return true;
+    } catch (e) {
+      // Log the error or handle it appropriately
+      Get.log('Error resetting settings: $e');
+      return false;
+    }
   }
   
   // Export settings
@@ -160,21 +251,87 @@ class SettingsService extends GetxService {
   }
   
   // Import settings
-  Future<void> importSettings(Map<String, dynamic> settings) async {
-    await _prefs.setString('themeMode', settings['themeMode']);
-    await _prefs.setString('defaultCurrency', settings['defaultCurrency']);
-    await _prefs.setBool('pushNotifications', settings['pushNotifications']);
-    await _prefs.setBool('emailNotifications', settings['emailNotifications']);
-    await _prefs.setBool('budgetAlerts', settings['budgetAlerts']);
-    await _prefs.setBool('expenseReminders', settings['expenseReminders']);
-    await _prefs.setBool('biometric', settings['biometric']);
-    await _prefs.setBool('analytics', settings['analytics']);
-    await _prefs.setString('dateFormat', settings['dateFormat']);
-    await _prefs.setString('timeFormat', settings['timeFormat']);
-    await _prefs.setString('numberFormat', settings['numberFormat']);
-    await _prefs.setBool('autoRollover', settings['autoRollover']);
-    await _prefs.setInt('budgetWarningThreshold', settings['budgetWarningThreshold']);
-    
-    await loadSettings();
+  Future<bool> importSettings(Map<String, dynamic> settings) async {
+    try {
+      // Theme settings
+      if (settings.containsKey('themeMode')) {
+        final themeMode = ThemeMode.values.byName(settings['themeMode']);
+        await prefs.setString('themeMode', themeMode.name);
+        this.themeMode.value = themeMode;
+        Get.changeThemeMode(themeMode);
+      }
+
+      // Currency settings
+      if (settings.containsKey('defaultCurrency')) {
+        await prefs.setString('defaultCurrency', settings['defaultCurrency']);
+        defaultCurrency.value = settings['defaultCurrency'];
+      }
+
+      // Notification settings
+      if (settings.containsKey('pushNotificationsEnabled')) {
+        await prefs.setBool('pushNotifications', settings['pushNotificationsEnabled']);
+        pushNotificationsEnabled.value = settings['pushNotificationsEnabled'];
+      }
+
+      if (settings.containsKey('emailNotificationsEnabled')) {
+        await prefs.setBool('emailNotifications', settings['emailNotificationsEnabled']);
+        emailNotificationsEnabled.value = settings['emailNotificationsEnabled'];
+      }
+
+      if (settings.containsKey('budgetAlertsEnabled')) {
+        await prefs.setBool('budgetAlerts', settings['budgetAlertsEnabled']);
+        budgetAlertsEnabled.value = settings['budgetAlertsEnabled'];
+      }
+
+      if (settings.containsKey('expenseRemindersEnabled')) {
+        await prefs.setBool('expenseReminders', settings['expenseRemindersEnabled']);
+        expenseRemindersEnabled.value = settings['expenseRemindersEnabled'];
+      }
+
+      // Privacy settings
+      if (settings.containsKey('biometricEnabled')) {
+        await prefs.setBool('biometric', settings['biometricEnabled']);
+        biometricEnabled.value = settings['biometricEnabled'];
+      }
+
+      if (settings.containsKey('analyticsEnabled')) {
+        await prefs.setBool('analytics', settings['analyticsEnabled']);
+        analyticsEnabled.value = settings['analyticsEnabled'];
+      }
+
+      // Display settings
+      if (settings.containsKey('dateFormat')) {
+        await prefs.setString('dateFormat', settings['dateFormat']);
+        dateFormat.value = settings['dateFormat'];
+      }
+
+      if (settings.containsKey('timeFormat')) {
+        await prefs.setString('timeFormat', settings['timeFormat']);
+        timeFormat.value = settings['timeFormat'];
+      }
+
+      if (settings.containsKey('numberFormat')) {
+        await prefs.setString('numberFormat', settings['numberFormat']);
+        numberFormat.value = settings['numberFormat'];
+      }
+
+      // Budget settings
+      if (settings.containsKey('autoRollover')) {
+        await prefs.setBool('autoRollover', settings['autoRollover']);
+        autoRollover.value = settings['autoRollover'];
+      }
+
+      if (settings.containsKey('budgetWarningThreshold')) {
+        await prefs.setInt('budgetWarningThreshold', settings['budgetWarningThreshold']);
+        budgetWarningThreshold.value = settings['budgetWarningThreshold'];
+      }
+
+      return true;
+    } catch (e, stackTrace) {
+      // Use a proper logging mechanism instead of print
+      Get.log('Error importing settings: $e');
+      Get.log(stackTrace.toString());
+      return false;
+    }
   }
 }

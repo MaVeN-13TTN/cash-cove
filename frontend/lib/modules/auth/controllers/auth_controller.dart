@@ -4,6 +4,7 @@ import 'dart:async';
 import '../../../core/network/dio_client.dart';
 import '../../../core/utils/logger_utils.dart';
 import '../../../core/utils/storage_utils.dart';
+import '../../../app/config/routes/app_routes.dart';
 
 class AuthController extends GetxController {
   final DioClient _dioClient;
@@ -92,11 +93,19 @@ class AuthController extends GetxController {
         'terms_accepted': termsAccepted,
       });
 
-      if (response.statusCode == 200) {
+      if (response.statusCode == 200 || response.statusCode == 201) {
         final tokens = response.data;
         await StorageUtils.saveAccessToken(tokens['access']);
         await StorageUtils.saveRefreshToken(tokens['refresh']);
         await checkAuthStatus();
+        Get.snackbar(
+          'Signup Successful',
+          'You have been registered successfully!',
+          snackPosition: SnackPosition.BOTTOM,
+        );
+        Future.delayed(const Duration(seconds: 2), () {
+          Get.offAllNamed(AppRoutes.login);
+        });
       }
     } catch (e) {
       Get.snackbar(
@@ -425,23 +434,7 @@ class AuthController extends GetxController {
     }
   }
 
-  void _handleAuthError(dynamic error, String context) {
-    LoggerUtils.error(context, error);
-    _error.value = 'An error occurred. Please try again.';
-  }
-
-  Future<String> _getGoogleAuthToken() async {
-    // TODO: Implement Google Sign-In
-    throw UnimplementedError('Google Sign-In not yet implemented');
-  }
-
-  Future<String> _getFacebookAuthToken() async {
-    // TODO: Implement Facebook Sign-In
-    throw UnimplementedError('Facebook Sign-In not yet implemented');
-  }
-
-  Future<String> _getAppleAuthToken() async {
-    // TODO: Implement Apple Sign-In
-    throw UnimplementedError('Apple Sign-In not yet implemented');
-  }
+  // TODO: Implement Google Sign-In
+  // TODO: Implement Facebook Sign-In
+  // TODO: Implement Apple Sign-In
 }

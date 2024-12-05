@@ -16,13 +16,24 @@ class InitialBinding extends Bindings {
     final navigatorKey = GlobalKey<NavigatorState>();
     Get.put(navigatorKey, permanent: true);
 
+    // SharedPreferences Initialization
+    try {
+      if (!Get.isRegistered<SharedPreferences>()) {
+        final prefs = await SharedPreferences.getInstance();
+        Get.put<SharedPreferences>(prefs, permanent: true);
+        debugPrint('SharedPreferences initialized successfully');
+      } else {
+        debugPrint('SharedPreferences already registered');
+      }
+    } catch (e) {
+      debugPrint('Error initializing SharedPreferences: $e');
+    }
+
     // Dio Instance
     final dio = Dio();
     Get.put(dio, permanent: true);
 
     // Core Services Initialization
-    final prefs = await SharedPreferences.getInstance();
-    Get.put<SharedPreferences>(prefs, permanent: true);
 
     // Secure Storage
     final secureStorage = await SecureStorage.initialize();

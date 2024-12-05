@@ -1,79 +1,107 @@
-import 'dart:convert';
-import 'package:http/http.dart' as http;
+import 'package:dio/dio.dart';
 
 class ApiProvider {
   final String baseUrl;
-  final Map<String, String> _headers = {
-    'Content-Type': 'application/json',
-  };
+  late final Dio _dio;
 
-  ApiProvider({required this.baseUrl});
-
-  void setAuthToken(String token) {
-    _headers['Authorization'] = 'Bearer $token';
+  ApiProvider({required this.baseUrl}) {
+    _dio = Dio(BaseOptions(
+      baseUrl: baseUrl,
+      headers: {'Content-Type': 'application/json'},
+      sendTimeout: const Duration(seconds: 15),
+      receiveTimeout: const Duration(seconds: 15),
+      connectTimeout: const Duration(seconds: 15),
+    ));
   }
 
-  Future<Map<String, dynamic>> get(
+  void setAuthToken(String token) {
+    _dio.options.headers['Authorization'] = 'Bearer $token';
+  }
+
+  Future<dynamic> get(
     String endpoint, {
     Map<String, String>? queryParameters,
   }) async {
-    final uri = Uri.parse('$baseUrl$endpoint').replace(
-      queryParameters: queryParameters,
-    );
-    final response = await http.get(
-      uri,
-      headers: _headers,
-    );
-    return _handleResponse(response);
-  }
-
-  Future<Map<String, dynamic>> post(String endpoint, Map<String, dynamic> data) async {
-    final response = await http.post(
-      Uri.parse('$baseUrl$endpoint'),
-      headers: _headers,
-      body: json.encode(data),
-    );
-    return _handleResponse(response);
-  }
-
-  Future<Map<String, dynamic>> put(String endpoint, Map<String, dynamic> data) async {
-    final response = await http.put(
-      Uri.parse('$baseUrl$endpoint'),
-      headers: _headers,
-      body: json.encode(data),
-    );
-    return _handleResponse(response);
-  }
-
-  Future<Map<String, dynamic>> delete(String endpoint) async {
-    final response = await http.delete(
-      Uri.parse('$baseUrl$endpoint'),
-      headers: _headers,
-    );
-    return _handleResponse(response);
-  }
-
-  Map<String, dynamic> _handleResponse(http.Response response) {
-    if (response.statusCode >= 200 && response.statusCode < 300) {
-      return json.decode(response.body);
+    try {
+      final response = await _dio.get(
+        endpoint.endsWith('/') ? endpoint : '$endpoint/',
+        queryParameters: queryParameters,
+      );
+      return response.data;
+    } on DioException catch (e) {
+      if (e.response?.statusCode == 404) {
+        return {'data': []};
+      }
+      throw _handleDioError(e);
     }
-    throw _handleError(response);
   }
 
-  Exception _handleError(http.Response response) {
-    final body = json.decode(response.body);
-    final message = body['message'] ?? 'An error occurred';
-    switch (response.statusCode) {
-      case 400:
-        return Exception('Bad request: $message');
-      case 401:
-        return Exception('Unauthorized: $message');
-      case 403:
-        return Exception('Forbidden: $message');
-      case 404:
-        return Exception('Not found: $message');
+  Future<dynamic> post(String endpoint, Map<String, dynamic> data) async {
+    try {
+      final response = await _dio.post(
+        endpoint.endsWith('/') ? endpoint : '$endpoint/',
+        data: data,
+      );
+      return response.data;
+    } on DioException catch (e) {
+      throw _handleDioError(e);
+    }
+  }
+
+  Future<dynamic> put(String endpoint, Map<String, dynamic> data) async {
+    try {
+      final response = await _dio.put(
+        endpoint.endsWith('/') ? endpoint : '$endpoint/',
+        data: data,
+      );
+      return response.data;
+    } on DioException catch (e) {
+      throw _handleDioError(e);
+    }
+  }
+
+  Future<dynamic> delete(String endpoint) async {
+    try {
+      final response = await _dio.delete(
+        endpoint.endsWith('/') ? endpoint : '$endpoint/',
+      );
+      return response.data;
+    } on DioException catch (e) {
+      throw _handleDioError(e);
+    }
+  }
+
+  Exception _handleDioError(DioException e) {
+    switch (e.type) {
+      case DioExceptionType.connectionTimeout:
+      case DioExceptionType.sendTimeout:
+      case DioExceptionType.receiveTimeout:
+        return TimeoutException('Connection timed out. Please try again.');
+      case DioExceptionType.badResponse:
+        final statusCode = e.response?.statusCode;
+        final message = e.response?.data['message'] ?? 'An error occurred';
+        return ApiException(statusCode ?? 500, message);
       default:
-        return Exception('Server error: $message');
+        return Exception('An unexpected error occurred');
     }
   }
+}
+
+class ApiException implements Exception {
+  final int statusCode;
+  final String message;
+
+  ApiException(this.statusCode, this.message);
+
+  @override
+  String toString() => message;
+}
+
+class TimeoutException implements Exception {
+  final String message;
+
+  TimeoutException(this.message);
+
+  @override
+  String toString() => message;
 }

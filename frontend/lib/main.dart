@@ -6,7 +6,7 @@ import 'app/config/routes/app_pages.dart';
 import 'app/bindings/initial_binding.dart';
 import 'core/network/dio_client.dart';
 import 'core/network/dio_api_adapter.dart';
-import 'core/services/auth/auth_service.dart'; // Corrected import path for AuthService
+import 'core/services/auth/auth_service.dart';
 import 'core/services/storage/secure_storage.dart';
 import 'core/services/hive_service.dart';
 import 'data/repositories/budget_repository.dart';
