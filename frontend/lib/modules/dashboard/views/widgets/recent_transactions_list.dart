@@ -1,13 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import '../../../../data/models/transaction/transaction_model.dart';
+import '../../../../data/models/expense/expense_model.dart';
 import '../../../../shared/widgets/empty_state.dart';
 import '../../controllers/dashboard_controller.dart';
 
-class RecentTransactionsList extends StatelessWidget {
+class RecentExpensesList extends StatelessWidget {
   final DashboardController controller;
 
-  const RecentTransactionsList({
+  const RecentExpensesList({
     Key? key,
     required this.controller,
   }) : super(key: key);
@@ -15,23 +15,23 @@ class RecentTransactionsList extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Obx(() {
-      final transactions = controller.recentTransactions;
+      final expenses = controller.recentExpenses;
 
-      if (transactions.isEmpty) {
+      if (expenses.isEmpty) {
         return const EmptyState(
-          title: 'No Recent Transactions',
-          description: 'Add a transaction to see it here',
+          title: 'No Recent Expenses',
+          description: 'Add an expense to see it here',
         );
       }
 
       return ListView.separated(
         shrinkWrap: true,
         physics: const NeverScrollableScrollPhysics(),
-        itemCount: transactions.length,
+        itemCount: expenses.length,
         separatorBuilder: (context, index) => const Divider(),
         itemBuilder: (context, index) {
-          return _TransactionItem(
-            transaction: transactions[index],
+          return _ExpenseItem(
+            expense: expenses[index],
           );
         },
       );
@@ -39,12 +39,12 @@ class RecentTransactionsList extends StatelessWidget {
   }
 }
 
-class _TransactionItem extends StatelessWidget {
-  final TransactionModel transaction;
+class _ExpenseItem extends StatelessWidget {
+  final ExpenseModel expense;
 
-  const _TransactionItem({
+  const _ExpenseItem({
     Key? key,
-    required this.transaction,
+    required this.expense,
   }) : super(key: key);
 
   @override
@@ -52,15 +52,15 @@ class _TransactionItem extends StatelessWidget {
     return ListTile(
       leading: _buildCategoryIcon(context),
       title: Text(
-        transaction.description,
+        expense.title,
         style: Theme.of(context).textTheme.bodyLarge,
       ),
       subtitle: Text(
-        _getFormattedDate(),
+        expense.description ?? _getFormattedDate(),
         style: Theme.of(context).textTheme.bodySmall,
       ),
       trailing: _buildAmount(context),
-      onTap: () => _onTransactionTap(context),
+      onTap: () => _onExpenseTap(context),
     );
   }
 
@@ -80,22 +80,22 @@ class _TransactionItem extends StatelessWidget {
 
   Widget _buildAmount(BuildContext context) {
     return Text(
-      '\$${transaction.amount.toStringAsFixed(2)}',
+      '\$${expense.amount.toStringAsFixed(2)}',
       style: Theme.of(context).textTheme.titleMedium?.copyWith(
-            color: transaction.amount < 0
-                ? Theme.of(context).colorScheme.error
-                : Theme.of(context).colorScheme.primary,
+            color: expense.amount >= 0
+                ? Theme.of(context).colorScheme.primary
+                : Theme.of(context).colorScheme.error,
             fontWeight: FontWeight.bold,
           ),
     );
   }
 
   String _getFormattedDate() {
-    return '${transaction.date.day}/${transaction.date.month}/${transaction.date.year}';
+    return '${expense.date.day}/${expense.date.month}/${expense.date.year}';
   }
 
   IconData _getCategoryIcon() {
-    switch (transaction.category.toLowerCase()) {
+    switch (expense.category.toLowerCase()) {
       case 'food':
         return Icons.restaurant;
       case 'transport':
@@ -113,7 +113,7 @@ class _TransactionItem extends StatelessWidget {
     }
   }
 
-  void _onTransactionTap(BuildContext context) {
-    Get.toNamed('/transactions/${transaction.id}');
+  void _onExpenseTap(BuildContext context) {
+    Get.toNamed('/expenses/${expense.id}');
   }
 }

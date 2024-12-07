@@ -20,7 +20,7 @@ class ApiProvider {
 
   Future<dynamic> get(
     String endpoint, {
-    Map<String, String>? queryParameters,
+    Map<String, dynamic>? queryParameters,
   }) async {
     try {
       final response = await _dio.get(
@@ -36,11 +36,16 @@ class ApiProvider {
     }
   }
 
-  Future<dynamic> post(String endpoint, Map<String, dynamic> data) async {
+  Future<dynamic> post(
+    String endpoint,
+    dynamic data, {
+    Map<String, dynamic>? queryParameters,
+  }) async {
     try {
       final response = await _dio.post(
         endpoint.endsWith('/') ? endpoint : '$endpoint/',
         data: data,
+        queryParameters: queryParameters,
       );
       return response.data;
     } on DioException catch (e) {
@@ -48,11 +53,16 @@ class ApiProvider {
     }
   }
 
-  Future<dynamic> put(String endpoint, Map<String, dynamic> data) async {
+  Future<dynamic> put(
+    String endpoint,
+    dynamic data, {
+    Map<String, dynamic>? queryParameters,
+  }) async {
     try {
       final response = await _dio.put(
         endpoint.endsWith('/') ? endpoint : '$endpoint/',
         data: data,
+        queryParameters: queryParameters,
       );
       return response.data;
     } on DioException catch (e) {
@@ -60,10 +70,16 @@ class ApiProvider {
     }
   }
 
-  Future<dynamic> delete(String endpoint) async {
+  Future<dynamic> delete(
+    String endpoint, {
+    Map<String, dynamic>? queryParameters,
+    dynamic data,
+  }) async {
     try {
       final response = await _dio.delete(
         endpoint.endsWith('/') ? endpoint : '$endpoint/',
+        queryParameters: queryParameters,
+        data: data,
       );
       return response.data;
     } on DioException catch (e) {

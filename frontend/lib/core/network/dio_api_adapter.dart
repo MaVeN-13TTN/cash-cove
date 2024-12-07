@@ -1,3 +1,4 @@
+import 'package:dio/dio.dart';
 import '../../data/providers/api_provider.dart';
 import 'dio_client.dart';
 
@@ -7,43 +8,90 @@ class DioApiAdapter extends ApiProvider {
   DioApiAdapter(this._dioClient) : super(baseUrl: _dioClient.baseUrl);
 
   @override
-  Future<Map<String, dynamic>> get(
+  Future<dynamic> get(
     String endpoint, {
-    Map<String, String>? queryParameters,
+    Map<String, dynamic>? queryParameters,
   }) async {
-    final response = await _dioClient.get(
-      endpoint,
-      queryParameters: queryParameters?.map((key, value) => MapEntry(key, value)),
-    );
-    return response.data as Map<String, dynamic>;
+    try {
+      final response = await _dioClient.dio.get(
+        endpoint.endsWith('/') ? endpoint : '$endpoint/',
+        queryParameters: queryParameters,
+      );
+      return response.data;
+    } on DioException catch (e) {
+      if (e.response?.statusCode == 404) {
+        return {'data': []};
+      }
+      throw _handleError(e);
+    }
   }
 
   @override
-  Future<Map<String, dynamic>> post(String endpoint, Map<String, dynamic> data) async {
-    final response = await _dioClient.post(
-      endpoint,
-      data: data,
-    );
-    return response.data as Map<String, dynamic>;
+  Future<dynamic> post(
+    String endpoint,
+    dynamic data, {
+    Map<String, dynamic>? queryParameters,
+  }) async {
+    try {
+      final response = await _dioClient.dio.post(
+        endpoint.endsWith('/') ? endpoint : '$endpoint/',
+        data: data,
+        queryParameters: queryParameters,
+      );
+      return response.data;
+    } on DioException catch (e) {
+      throw _handleError(e);
+    }
   }
 
   @override
-  Future<Map<String, dynamic>> put(String endpoint, Map<String, dynamic> data) async {
-    final response = await _dioClient.put(
-      endpoint,
-      data: data,
-    );
-    return response.data as Map<String, dynamic>;
+  Future<dynamic> put(
+    String endpoint,
+    dynamic data, {
+    Map<String, dynamic>? queryParameters,
+  }) async {
+    try {
+      final response = await _dioClient.dio.put(
+        endpoint.endsWith('/') ? endpoint : '$endpoint/',
+        data: data,
+        queryParameters: queryParameters,
+      );
+      return response.data;
+    } on DioException catch (e) {
+      throw _handleError(e);
+    }
   }
 
   @override
-  Future<Map<String, dynamic>> delete(String endpoint) async {
-    final response = await _dioClient.delete(endpoint);
-    return response.data as Map<String, dynamic>;
+  Future<dynamic> delete(
+    String endpoint, {
+    Map<String, dynamic>? queryParameters,
+    dynamic data,
+  }) async {
+    try {
+      final response = await _dioClient.dio.delete(
+        endpoint.endsWith('/') ? endpoint : '$endpoint/',
+        queryParameters: queryParameters,
+        data: data,
+      );
+      return response.data;
+    } on DioException catch (e) {
+      throw _handleError(e);
+    }
   }
 
-  @override
-  void setAuthToken(String token) {
-    // Token handling is managed by DioClient's AuthInterceptor
+  Exception _handleError(DioException e) {
+    switch (e.type) {
+      case DioExceptionType.connectionTimeout:
+      case DioExceptionType.sendTimeout:
+      case DioExceptionType.receiveTimeout:
+        return TimeoutException('Connection timed out. Please try again.');
+      case DioExceptionType.badResponse:
+        final statusCode = e.response?.statusCode;
+        final message = e.response?.data['message'] ?? 'An error occurred';
+        return ApiException(statusCode ?? 500, message);
+      default:
+        return Exception('An unexpected error occurred');
+    }
   }
 }

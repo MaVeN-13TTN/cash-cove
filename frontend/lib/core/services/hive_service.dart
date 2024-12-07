@@ -1,6 +1,5 @@
 import 'package:hive_flutter/hive_flutter.dart';
 import '../../data/models/budget/budget_model.dart';
-import '../../data/models/transaction/transaction_model.dart';
 import '../../data/models/expense/expense_model.dart';
 
 class HiveService {
@@ -13,20 +12,16 @@ class HiveService {
   Box<String>? _offlineRequestsBox;
   Box<BudgetModel>? _budgetsBox;
   Box<int>? _tokenBlacklistBox;
-  Box<TransactionModel>? _transactionsBox;
   Box<ExpenseModel>? _expensesBox;
 
   Future<void> initializeHive() async {
     await Hive.initFlutter();
     
     // Register adapters if not already registered
-    if (!Hive.isAdapterRegistered(1)) {
+    if (!Hive.isAdapterRegistered(0)) {
       Hive.registerAdapter(BudgetModelAdapter());
     }
-    if (!Hive.isAdapterRegistered(2)) {
-      Hive.registerAdapter(TransactionModelAdapter());
-    }
-    if (!Hive.isAdapterRegistered(3)) {
+    if (!Hive.isAdapterRegistered(1)) {
       Hive.registerAdapter(ExpenseModelAdapter());
     }
   }
@@ -43,7 +38,7 @@ class HiveService {
 
   Future<Box<String>> getOfflineRequestsBox() async {
     _offlineRequestsBox ??= await Hive.openBox<String>('offline_requests');
-    return _offlineRequestsBox as Box<String>;
+    return _offlineRequestsBox!;
   }
 
   Future<Box<BudgetModel>> getBudgetsBox() async {
@@ -54,14 +49,6 @@ class HiveService {
   Future<Box<int>> getTokenBlacklistBox() async {
     _tokenBlacklistBox ??= await Hive.openBox<int>('token_blacklist');
     return _tokenBlacklistBox!;
-  }
-
-  Future<Box<TransactionModel>> getTransactionsBox() async {
-    const boxName = 'transactions';
-    if (!Hive.isBoxOpen(boxName)) {
-      await Hive.openBox<TransactionModel>(boxName);
-    }
-    return Hive.box<TransactionModel>(boxName);
   }
 
   Future<Box<ExpenseModel>> getExpensesBox() async {
@@ -79,7 +66,6 @@ class HiveService {
     await _offlineRequestsBox?.close();
     await _budgetsBox?.close();
     await _tokenBlacklistBox?.close();
-    await _transactionsBox?.close();
     await _expensesBox?.close();
   }
 }

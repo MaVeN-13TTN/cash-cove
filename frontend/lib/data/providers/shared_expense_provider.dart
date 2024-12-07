@@ -1,4 +1,7 @@
 import '../models/shared_expense/shared_expense_model.dart';
+import '../models/group/group_model.dart';
+import '../models/user/user_model.dart';
+import '../models/settlement/settlement_model.dart';
 import 'api_provider.dart';
 
 class SharedExpenseProvider {
@@ -60,5 +63,67 @@ class SharedExpenseProvider {
     return (response['sharedExpenses'] as List)
         .map((json) => SharedExpenseModel.fromJson(json))
         .toList();
+  }
+
+  Future<List<GroupModel>> getGroups() async {
+    final response = await _apiProvider.get('/groups');
+    return (response['groups'] as List)
+        .map((json) => GroupModel.fromJson(json))
+        .toList();
+  }
+
+  Future<GroupModel> createGroup(Map<String, dynamic> data) async {
+    final response = await _apiProvider.post('/groups', data);
+    return GroupModel.fromJson(response['group']);
+  }
+
+  Future<GroupModel> updateGroup(String id, Map<String, dynamic> data) async {
+    final response = await _apiProvider.put('/groups/$id', data);
+    return GroupModel.fromJson(response['group']);
+  }
+
+  Future<void> deleteGroup(String id) async {
+    await _apiProvider.delete('/groups/$id');
+  }
+
+  Future<void> addMember(String groupId, String userId) async {
+    await _apiProvider.post('/groups/$groupId/members', {'userId': userId});
+  }
+
+  Future<void> removeMember(String groupId, String userId) async {
+    await _apiProvider.delete('/groups/$groupId/members/$userId');
+  }
+
+  Future<List<UserModel>> getGroupMembers(String groupId) async {
+    final response = await _apiProvider.get('/groups/$groupId/members');
+    return (response['members'] as List)
+        .map((json) => UserModel.fromJson(json))
+        .toList();
+  }
+
+  Future<List<SettlementModel>> getSettlements(String groupId) async {
+    final response = await _apiProvider.get('/groups/$groupId/settlements');
+    return (response['settlements'] as List)
+        .map((json) => SettlementModel.fromJson(json))
+        .toList();
+  }
+
+  Future<SettlementModel> createSettlement(Map<String, dynamic> data) async {
+    final response = await _apiProvider.post('/settlements', data);
+    return SettlementModel.fromJson(response['settlement']);
+  }
+
+  Future<void> markSettlementPaid(String settlementId) async {
+    await _apiProvider.put('/settlements/$settlementId/mark-paid', {});
+  }
+
+  Future<Map<String, dynamic>> getGroupAnalytics(String groupId) async {
+    final response = await _apiProvider.get('/groups/$groupId/analytics');
+    return Map<String, dynamic>.from(response['analytics']);
+  }
+
+  Future<Map<String, dynamic>> getMemberContributions(String groupId) async {
+    final response = await _apiProvider.get('/groups/$groupId/contributions');
+    return Map<String, dynamic>.from(response['contributions']);
   }
 }

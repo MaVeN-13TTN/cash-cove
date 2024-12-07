@@ -10,6 +10,28 @@ class BudgetSummaryCard extends StatelessWidget {
     required this.controller,
   }) : super(key: key);
 
+  String _getSpendingAdvice() {
+    if (controller.isUsingDummyData) {
+      return 'Loading your personalized spending advice...';
+    }
+
+    final daysLeft = DateTime.now().month == 12
+        ? DateTime(DateTime.now().year, 12, 31).day - DateTime.now().day
+        : DateTime(DateTime.now().year, DateTime.now().month + 1, 0).day -
+            DateTime.now().day;
+    final dailyBudget = controller.remainingBudget / daysLeft;
+
+    if (controller.remainingBudget <= 0) {
+      return 'You have exceeded your budget. Try to reduce spending.';
+    } else if (controller.spendingPercentage > 90) {
+      return 'You are close to your budget limit. Be careful with spending.';
+    } else if (controller.spendingPercentage > 75) {
+      return 'You can spend about \$${dailyBudget.toStringAsFixed(2)} per day for the rest of the month.';
+    } else {
+      return 'You are well within your budget. Keep it up!';
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return InfoCard(
@@ -99,7 +121,7 @@ class BudgetSummaryCard extends StatelessWidget {
 
   Widget _buildAdviceText(BuildContext context) {
     return Text(
-      controller.getSpendingAdvice(),
+      _getSpendingAdvice(),
       style: Theme.of(context).textTheme.bodySmall?.copyWith(
             fontStyle: FontStyle.italic,
           ),
