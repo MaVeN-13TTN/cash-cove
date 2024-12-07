@@ -1,3 +1,4 @@
+import 'package:get/get.dart';
 import 'package:flutter/material.dart';
 
 class DialogService {
@@ -9,8 +10,8 @@ class DialogService {
     required String title,
     required String message,
     String? buttonText,
-  }) async {
-    return showDialog(
+  }) {
+    return showDialog<void>(
       context: navigatorKey.currentContext!,
       builder: (context) => AlertDialog(
         title: Text(title),
@@ -51,25 +52,40 @@ class DialogService {
     return result ?? false;
   }
 
-  Future<void> showLoading({String? message}) async {
-    return showDialog(
-      context: navigatorKey.currentContext!,
-      barrierDismissible: false,
-      builder: (context) => AlertDialog(
-        content: Row(
-          children: [
-            const CircularProgressIndicator(),
-            const SizedBox(width: 16),
-            Text(message ?? 'Loading...'),
-          ],
-        ),
+  void showGetDialog(String title, String message) {
+    Get.dialog(
+      AlertDialog(
+        title: Text(title),
+        content: Text(message),
+        actions: [
+          TextButton(
+            onPressed: () => Get.back(),
+            child: const Text('OK'),
+          ),
+        ],
       ),
     );
   }
 
-  void hideLoading() {
-    if (navigatorKey.currentContext != null) {
-      Navigator.of(navigatorKey.currentContext!).pop();
-    }
+  void showGetConfirmationDialog(String title, String message, VoidCallback onConfirm) {
+    Get.dialog(
+      AlertDialog(
+        title: Text(title),
+        content: Text(message),
+        actions: [
+          TextButton(
+            onPressed: () => Get.back(),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () {
+              Get.back();
+              onConfirm();
+            },
+            child: const Text('Confirm'),
+          ),
+        ],
+      ),
+    );
   }
 }

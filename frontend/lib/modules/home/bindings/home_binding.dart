@@ -5,12 +5,10 @@ import '../../../data/providers/api_provider.dart';
 
 // Import providers
 import '../../../data/providers/budget_provider.dart';
-import '../../../data/providers/transaction_provider.dart';
 import '../../../data/providers/expense_provider.dart';
 
 // Import repositories
 import '../../../data/repositories/budget_repository.dart';
-import '../../../data/repositories/transaction_repository.dart';
 import '../../../data/repositories/expense_repository.dart';
 
 // Import controllers
@@ -38,9 +36,6 @@ class HomeBinding extends Bindings {
     Get.lazyPut<BudgetProvider>(() => BudgetProvider(
           Get.find<ApiProvider>(),
         ));
-    Get.lazyPut<TransactionProvider>(() => TransactionProvider(
-          Get.find<ApiProvider>(),
-        ));
     Get.lazyPut<ExpenseProvider>(() => ExpenseProvider(
           Get.find<ApiProvider>(),
         ));
@@ -48,9 +43,6 @@ class HomeBinding extends Bindings {
     // Repositories
     Get.lazyPut<BudgetRepository>(() => BudgetRepository(
           Get.find<BudgetProvider>(),
-        ));
-    Get.lazyPut<TransactionRepository>(() => TransactionRepository(
-          Get.find<TransactionProvider>(),
         ));
     Get.lazyPut<ExpenseRepository>(() => ExpenseRepository(
           Get.find<ExpenseProvider>(),
@@ -69,7 +61,7 @@ class HomeBinding extends Bindings {
     // Feature controllers with repositories
     Get.lazyPut<DashboardController>(() => DashboardController(
           budgetRepository: Get.find<BudgetRepository>(),
-          transactionRepository: Get.find<TransactionRepository>(),
+          expenseRepository: Get.find<ExpenseRepository>(),
         ));
 
     Get.lazyPut<BudgetController>(() => BudgetController(

@@ -8,7 +8,7 @@ import '../services/api/interceptors/rate_limit_interceptor.dart';
 import '../services/storage/secure_storage.dart';
 import '../services/auth/auth_service.dart';
 import '../services/auth/token_manager.dart';
-import '../widgets/dialogs/dialog_service.dart';
+import '../services/dialog/dialog_service.dart';
 import 'interceptors/trailing_slash_interceptor.dart';
 
 class DioClient extends GetxService {

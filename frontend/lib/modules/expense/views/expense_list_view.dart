@@ -37,12 +37,10 @@ class ExpenseListView extends GetView<ExpenseController> {
         }
 
         if (controller.expenses.isEmpty) {
-          return EmptyState(
+          return const EmptyState(
             title: 'No Expenses',
             description: 'Start tracking your expenses by adding your first expense',
             icon: Icons.receipt_long,
-            onAction: () => Get.to(() => const AddExpenseView()),
-            actionText: 'Add Expense',
           );
         }
 
@@ -72,10 +70,6 @@ class ExpenseListView extends GetView<ExpenseController> {
           ),
         );
       }),
-      floatingActionButton: FloatingActionButton(
-        onPressed: () => Get.to(() => const AddExpenseView()),
-        child: const Icon(Icons.add),
-      ),
     );
   }
 

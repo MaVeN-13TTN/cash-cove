@@ -6,7 +6,7 @@ import '../../core/services/storage/secure_storage.dart';
 import '../../core/services/auth/auth_service.dart';
 import '../../core/network/dio_client.dart';
 import '../../core/services/auth/token_manager.dart';
-import '../../core/widgets/dialogs/dialog_service.dart';
+import '../../core/services/dialog/dialog_service.dart';
 import '../../modules/auth/controllers/auth_controller.dart';
 
 class InitialBinding extends Bindings {

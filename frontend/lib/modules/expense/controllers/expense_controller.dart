@@ -33,6 +33,17 @@ class ExpenseController extends GetxController {
   final RxBool hasMoreExpenses = true.obs;
   final RxInt currentPage = 1.obs;
 
+  // Check if expenses exist for the user
+  Future<bool> checkExpensesExist() async {
+    try {
+      final existingExpenses = await _repository.getExpenses();
+      return existingExpenses.isNotEmpty;
+    } catch (e) {
+      ErrorHandler.handleError(e);
+      return false;
+    }
+  }
+
   // Fetch expenses
   Future<void> fetchExpenses({
     bool loadMore = false,
@@ -41,6 +52,13 @@ class ExpenseController extends GetxController {
     DateTime? endDate,
     String? budgetId,
   }) async {
+    if (!await checkExpensesExist()) {
+      // No expenses exist, fallback to empty state
+      expenses.clear();
+      isLoading.value = false;
+      return;
+    }
+
     try {
       isLoading.value = true;
       error.value = '';

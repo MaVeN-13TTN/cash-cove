@@ -11,7 +11,7 @@ import 'interceptors/rate_limit_interceptor.dart';
 import 'request_manager.dart';
 import '../auth/token_manager.dart';
 import '../auth/auth_service.dart';
-import '../../widgets/dialogs/dialog_service.dart';
+import '../../services/dialog/dialog_service.dart';
 import 'offline_queue_service.dart';
 import 'token_interceptor.dart';
 import '../hive_service.dart';

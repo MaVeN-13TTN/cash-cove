@@ -13,8 +13,8 @@ import 'data/repositories/budget_repository.dart';
 import 'data/providers/budget_provider.dart';
 import 'modules/auth/controllers/auth_controller.dart';
 import 'core/services/auth/token_manager.dart';
-import 'core/widgets/dialogs/dialog_service.dart'; 
 import 'core/services/api/api_client.dart'; 
+import 'core/services/dialog/dialog_service.dart'; // Added import statement
 
 const String baseUrl = 'http://127.0.0.1:8000/api/v1';
 
@@ -31,8 +31,7 @@ void main() async {
   await hiveService.getBlacklistStorageBox();
   await hiveService.getOfflineRequestsBox();
   await hiveService.getBudgetsBox();
-  await hiveService.getTransactionsBox();
-  await hiveService.getExpensesBox();  // Initialize expenses box
+  await hiveService.getExpensesBox();
 
   // Initialize SecureStorage first
   final secureStorage = await SecureStorage.initialize();
@@ -50,6 +49,11 @@ void main() async {
   final navigatorKey = GlobalKey<NavigatorState>();
   Get.put(navigatorKey, permanent: true);
 
+  // Initialize DialogService
+  Get.put(DialogService(
+    navigatorKey: navigatorKey
+  ));
+
   // Initialize Dio
   final dio = Dio();
 
@@ -59,10 +63,6 @@ void main() async {
     storage: secureStorage,
   );
   Get.put<AuthService>(authService);
-
-  // Initialize DialogService
-  final dialogService = DialogService(navigatorKey: navigatorKey);
-  Get.put<DialogService>(dialogService);
 
   // Initialize ApiClient
   final apiClient = await ApiClient.initialize(

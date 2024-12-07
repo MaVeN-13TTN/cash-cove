@@ -13,6 +13,12 @@ import '../../../modules/dashboard/views/dashboard_view.dart';
 import '../../../modules/dashboard/bindings/dashboard_binding.dart';
 import '../../../modules/settings/views/settings_view.dart';
 import '../../../modules/settings/bindings/settings_binding.dart';
+import '../../../modules/expense/views/expense_view.dart';
+import '../../../modules/expense/bindings/expense_binding.dart';
+import '../../../modules/budget/views/budget_view.dart';
+import '../../../modules/budget/bindings/budget_binding.dart';
+import '../../../modules/analytics/views/analytics_view.dart';
+import '../../../modules/analytics/bindings/analytics_binding.dart';
 import 'app_routes.dart';
 
 class AppPages {
@@ -65,9 +71,26 @@ class AppPages {
       page: () => const SettingsView(),
       binding: SettingsBinding(),
     ),
+    // Expenses
+    GetPage(
+      name: '/expenses',
+      page: () => const ExpenseView(),
+      binding: ExpenseBinding(),
+    ),
+    // Budgets
+    GetPage(
+      name: '/budgets',
+      page: () => const BudgetView(),
+      binding: BudgetBinding(),
+    ),
+    // Analytics
+    GetPage(
+      name: '/analytics',
+      page: () => const AnalyticsView(),
+      binding: AnalyticsBinding(),
+    ),
     // Remaining routes will be implemented as their screens are developed:
     // - Profile
-    // - Budget related screens
     // - Transaction related screens
   ];
 }

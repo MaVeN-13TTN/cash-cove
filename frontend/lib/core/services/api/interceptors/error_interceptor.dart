@@ -1,6 +1,6 @@
 import 'package:dio/dio.dart';
 import '../../auth/auth_service.dart';
-import '../../../widgets/dialogs/dialog_service.dart';
+import '../../../services/dialog/dialog_service.dart';
 
 class ErrorCodes {
   static const int authError = 1000;
@@ -51,53 +51,45 @@ class ErrorInterceptor extends Interceptor {
   }
 
   void _handleAuthError(DioException err) {
-    _authService.handleAuthError();
+    _dialogService.showGetDialog(
+      'Authentication Error', 
+      'Please log in again.'
+    );
+    _authService.logout();
   }
 
-  void _handleValidationError(DioException err, Map<String, dynamic> details) {
-    _dialogService.showError(
-      title: 'Validation Error',
-      message: _formatValidationErrors(details),
+  void _handleValidationError(DioException err, dynamic details) {
+    _dialogService.showGetDialog(
+      'Validation Error', 
+      details?.toString() ?? 'Invalid input.'
     );
   }
 
   void _handleNotFoundError(DioException err) {
-    _dialogService.showError(
-      title: 'Not Found',
-      message: 'The requested resource was not found.',
+    _dialogService.showGetDialog(
+      'Not Found', 
+      'The requested resource could not be found.'
     );
   }
 
   void _handlePermissionError(DioException err) {
-    _dialogService.showError(
-      title: 'Permission Denied',
-      message: 'You do not have permission to perform this action.',
+    _dialogService.showGetDialog(
+      'Permission Denied', 
+      'You do not have permission to perform this action.'
     );
   }
 
   void _handleServerError(DioException err) {
-    _dialogService.showError(
-      title: 'Server Error',
-      message: 'An unexpected error occurred. Please try again later.',
+    _dialogService.showGetDialog(
+      'Server Error', 
+      'An unexpected server error occurred.'
     );
   }
 
   void _handleUnknownError(DioException err) {
-    _dialogService.showError(
-      title: 'Error',
-      message: 'An unexpected error occurred. Please try again.',
+    _dialogService.showGetDialog(
+      'Error', 
+      'An unexpected error occurred.'
     );
-  }
-
-  String _formatValidationErrors(Map<String, dynamic> details) {
-    final buffer = StringBuffer();
-    details.forEach((key, value) {
-      if (value is List) {
-        buffer.writeln('$key: ${value.join(', ')}');
-      } else {
-        buffer.writeln('$key: $value');
-      }
-    });
-    return buffer.toString().trim();
   }
 }
