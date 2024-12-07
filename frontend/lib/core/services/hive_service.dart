@@ -1,6 +1,8 @@
 import 'package:hive_flutter/hive_flutter.dart';
+import 'package:flutter/foundation.dart';
 import '../../data/models/budget/budget_model.dart';
 import '../../data/models/expense/expense_model.dart';
+import '../../core/utils/logger_utils.dart';
 
 class HiveService {
   static final HiveService _instance = HiveService._internal();
@@ -18,11 +20,20 @@ class HiveService {
     await Hive.initFlutter();
     
     // Register adapters if not already registered
-    if (!Hive.isAdapterRegistered(0)) {
-      Hive.registerAdapter(BudgetModelAdapter());
-    }
-    if (!Hive.isAdapterRegistered(1)) {
-      Hive.registerAdapter(ExpenseModelAdapter());
+    _safeRegisterAdapter<BudgetModel>(BudgetModelAdapter());
+    _safeRegisterAdapter<ExpenseModel>(ExpenseModelAdapter());
+  }
+
+  void _safeRegisterAdapter<T>(TypeAdapter<T> adapter) {
+    try {
+      if (!Hive.isAdapterRegistered(adapter.typeId)) {
+        Hive.registerAdapter<T>(adapter);
+        if (kDebugMode) {
+          LoggerUtils.info('Registered Hive adapter for type ${T.toString()} with typeId ${adapter.typeId}');
+        }
+      }
+    } catch (e) {
+      LoggerUtils.error('Error registering Hive adapter for type ${T.toString()}: $e');
     }
   }
 

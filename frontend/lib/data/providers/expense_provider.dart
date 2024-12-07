@@ -17,6 +17,8 @@ class ExpenseProvider {
     double? minAmount,
     double? maxAmount,
     List<String>? tags,
+    int page = 1,
+    int? limit,
   }) async {
     try {
       final queryParams = <String, String>{
@@ -28,6 +30,8 @@ class ExpenseProvider {
         if (minAmount != null) 'min_amount': minAmount.toString(),
         if (maxAmount != null) 'max_amount': maxAmount.toString(),
         if (tags != null && tags.isNotEmpty) 'tags': tags.join(','),
+        'page': page.toString(),
+        if (limit != null) 'limit': limit.toString(),
       };
 
       final response = await _apiProvider.get('/api/v1/expenses/', queryParameters: queryParams);

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:dio/dio.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import 'app/config/routes/app_pages.dart';
 import 'app/bindings/initial_binding.dart';
@@ -32,6 +33,10 @@ void main() async {
   await hiveService.getOfflineRequestsBox();
   await hiveService.getBudgetsBox();
   await hiveService.getExpensesBox();
+
+  // Initialize SharedPreferences
+  final SharedPreferences sharedPreferences = await SharedPreferences.getInstance();
+  Get.put<SharedPreferences>(sharedPreferences, permanent: true);
 
   // Initialize SecureStorage first
   final secureStorage = await SecureStorage.initialize();

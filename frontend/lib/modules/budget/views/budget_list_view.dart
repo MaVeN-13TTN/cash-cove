@@ -189,6 +189,55 @@ class BudgetListView extends GetView<BudgetController> {
     );
   }
 
+  void _showBudgetForm(BuildContext context) {
+    showGeneralDialog(
+      context: context,
+      barrierDismissible: true,
+      barrierLabel: MaterialLocalizations.of(context).modalBarrierDismissLabel,
+      barrierColor: Colors.black54,
+      transitionDuration: const Duration(milliseconds: 300),
+      pageBuilder: (BuildContext buildContext, Animation<double> animation, Animation<double> secondaryAnimation) {
+        return SafeArea(
+          child: Align(
+            alignment: Alignment.topCenter,
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 32),
+              child: Material(
+                borderRadius: BorderRadius.circular(16),
+                elevation: 8,
+                child: SingleChildScrollView(
+                  child: Padding(
+                    padding: EdgeInsets.only(
+                      bottom: MediaQuery.of(context).viewInsets.bottom,
+                      top: 16,
+                      left: 16,
+                      right: 16,
+                    ),
+                    child: const BudgetForm(),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        );
+      },
+      transitionBuilder: (context, animation, secondaryAnimation, child) {
+        return SlideTransition(
+          position: Tween<Offset>(
+            begin: const Offset(0, -1),  // Slide from top
+            end: Offset.zero,
+          ).animate(
+            CurvedAnimation(
+              parent: animation,
+              curve: Curves.easeInOut,
+            ),
+          ),
+          child: child,
+        );
+      },
+    );
+  }
+
   IconData _getCategoryIcon(String category) {
     final budgetCategory = BudgetCategory.values
         .firstWhere(
@@ -229,23 +278,5 @@ class BudgetListView extends GetView<BudgetController> {
     if (dateRange != null) {
       controller.setDateRange(dateRange);
     }
-  }
-
-  void _showBudgetForm(BuildContext context) {
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      builder: (context) => Padding(
-        padding: EdgeInsets.only(
-          bottom: MediaQuery.of(context).viewInsets.bottom,
-          top: 16,
-          left: 16,
-          right: 16,
-        ),
-        child: const SingleChildScrollView(
-          child: BudgetForm(),
-        ),
-      ),
-    );
   }
 }

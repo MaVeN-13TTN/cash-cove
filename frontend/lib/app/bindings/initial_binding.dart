@@ -8,6 +8,8 @@ import '../../core/network/dio_client.dart';
 import '../../core/services/auth/token_manager.dart';
 import '../../core/services/dialog/dialog_service.dart';
 import '../../modules/auth/controllers/auth_controller.dart';
+import '../../core/services/hive_service.dart';
+import '../../data/providers/api_provider.dart';
 
 class InitialBinding extends Bindings {
   @override
@@ -15,6 +17,18 @@ class InitialBinding extends Bindings {
     // Global Navigator Key
     final navigatorKey = GlobalKey<NavigatorState>();
     Get.put(navigatorKey, permanent: true);
+
+    // Initialize Hive
+    final hiveService = HiveService();
+    await hiveService.initializeHive();
+
+    // Open necessary Hive boxes
+    await hiveService.getTokenBlacklistBox();
+    await hiveService.getAppStorageBox();
+    await hiveService.getBlacklistStorageBox();
+    await hiveService.getOfflineRequestsBox();
+    await hiveService.getBudgetsBox();
+    await hiveService.getExpensesBox();
 
     // SharedPreferences Initialization
     try {
@@ -66,5 +80,9 @@ class InitialBinding extends Bindings {
       AuthController(dioClient: dioClient),
       permanent: true,
     );
+
+    // API Provider
+    final apiProvider = ApiProvider(baseUrl: dioClient.baseUrl);
+    Get.put<ApiProvider>(apiProvider, permanent: true);
   }
 }

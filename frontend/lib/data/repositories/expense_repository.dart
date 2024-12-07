@@ -22,18 +22,32 @@ class ExpenseRepository {
     String? category,
     String? budgetId,
     bool forceRefresh = false,
+    int page = 1,
+    int? limit,
   }) async {
     try {
       if (!forceRefresh) {
         final cachedExpenses = _localCache.values.toList();
-        if (cachedExpenses.isNotEmpty) {
-          return _filterCachedExpenses(
-            cachedExpenses,
-            startDate: startDate,
-            endDate: endDate,
-            category: category,
-            budgetId: budgetId,
+        var filteredExpenses = _filterCachedExpenses(
+          cachedExpenses,
+          startDate: startDate,
+          endDate: endDate,
+          category: category,
+          budgetId: budgetId,
+        );
+
+        // Apply pagination to cached expenses
+        if (limit != null) {
+          final startIndex = (page - 1) * limit;
+          final endIndex = startIndex + limit;
+          filteredExpenses = filteredExpenses.sublist(
+            startIndex, 
+            endIndex > filteredExpenses.length ? filteredExpenses.length : endIndex
           );
+        }
+
+        if (filteredExpenses.isNotEmpty) {
+          return filteredExpenses;
         }
       }
 
@@ -42,6 +56,8 @@ class ExpenseRepository {
         endDate: endDate,
         category: category,
         budgetId: budgetId,
+        page: page,
+        limit: limit,
       );
       await _updateCache(expenses);
       return expenses;

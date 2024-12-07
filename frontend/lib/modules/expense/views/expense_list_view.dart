@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+// ignore: unused_import
 import 'package:intl/intl.dart';
 
 import '../../../shared/widgets/empty_state.dart';
@@ -7,6 +8,8 @@ import '../../../shared/widgets/error_state.dart';
 import '../../../shared/widgets/loading_state.dart';
 import '../controllers/expense_controller.dart';
 import 'add_expense_view.dart';
+import 'widgets/expense_list_item.dart';
+import 'widgets/expense_details_card.dart';
 
 class ExpenseListView extends GetView<ExpenseController> {
   const ExpenseListView({Key? key}) : super(key: key);
@@ -14,15 +17,6 @@ class ExpenseListView extends GetView<ExpenseController> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Expenses'),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.filter_list),
-            onPressed: () => _showFilterBottomSheet(context),
-          ),
-        ],
-      ),
       body: Obx(() {
         if (controller.isLoading.value && controller.expenses.isEmpty) {
           return const LoadingState(message: 'Loading expenses...');
@@ -39,26 +33,22 @@ class ExpenseListView extends GetView<ExpenseController> {
         if (controller.expenses.isEmpty) {
           return const EmptyState(
             title: 'No Expenses',
-            description: 'Start tracking your expenses by adding your first expense',
+            description:
+                'Start tracking your expenses by adding your first expense',
             icon: Icons.receipt_long,
           );
         }
 
-        // TODO: Implement category filtering
-        // Potential implementation:
-        // 1. Add a dropdown or chip selector for categories
-        // 2. Modify controller to support category-based filtering
-        // 3. Update the expenses list based on selected category
         return RefreshIndicator(
           onRefresh: controller.fetchExpenses,
           child: ListView.separated(
-            itemCount: controller.expenses.length + 
-              (controller.hasMoreExpenses.value ? 1 : 0),
+            itemCount: controller.expenses.length +
+                (controller.hasMoreExpenses.value ? 1 : 0),
             separatorBuilder: (context, index) => const Divider(),
             itemBuilder: (context, index) {
               if (index < controller.expenses.length) {
                 final expense = controller.expenses[index];
-                return _ExpenseListItem(
+                return ExpenseListItem(
                   expense: expense,
                   onTap: () => _showExpenseDetails(expense),
                 );
@@ -82,157 +72,20 @@ class ExpenseListView extends GetView<ExpenseController> {
         : const SizedBox.shrink();
   }
 
-  void _showFilterBottomSheet(BuildContext context) {
-    showModalBottomSheet(
-      context: context,
-      builder: (context) => Obx(() => Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          const Text(
-            'Filter Expenses',
-            style: TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-          Wrap(
-            spacing: 8,
-            children: controller.expenseCategories
-              .map((category) => ChoiceChip(
-                label: Text(category),
-                selected: false,
-                onSelected: (selected) {
-                  // TODO: Implement category filtering
-                  Navigator.pop(context);
-                },
-              ))
-              .toList(),
-          ),
-        ],
-      )),
-    );
-  }
-
   void _showExpenseDetails(dynamic expense) {
     Get.bottomSheet(
-      Container(
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: Get.theme.cardColor,
-          borderRadius: const BorderRadius.vertical(
-            top: Radius.circular(20),
-          ),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(
-              expense.title,
-              style: Get.textTheme.titleLarge,
-            ),
-            const SizedBox(height: 8),
-            Text(
-              '\$${expense.amount.toStringAsFixed(2)}',
-              style: Get.textTheme.titleMedium?.copyWith(
-                color: expense.amount < 0 
-                  ? Get.theme.colorScheme.error 
-                  : Get.theme.colorScheme.primary,
-              ),
-            ),
-            const SizedBox(height: 8),
-            Text('Category: ${expense.category}'),
-            Text('Date: ${DateFormat.yMMMd().format(expense.date)}'),
-            if (expense.description != null)
-              Text('Description: ${expense.description}'),
-            const SizedBox(height: 16),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-              children: [
-                ElevatedButton(
-                  onPressed: () {
-                    Get.back();
-                    Get.to(() => AddExpenseView(expense: expense));
-                  },
-                  child: const Text('Edit'),
-                ),
-                ElevatedButton(
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Get.theme.colorScheme.error,
-                  ),
-                  onPressed: () {
-                    Get.back();
-                    controller.deleteExpense(expense.id);
-                  },
-                  child: const Text('Delete'),
-                ),
-              ],
-            ),
-          ],
-        ),
+      ExpenseDetailsCard(
+        expense: expense,
+        onEdit: () {
+          Get.back();
+          Get.to(() => AddExpenseView(expense: expense));
+        },
+        onDelete: () {
+          Get.back();
+          controller.deleteExpense(expense.id);
+        },
       ),
+      isScrollControlled: true,
     );
-  }
-}
-
-class _ExpenseListItem extends StatelessWidget {
-  final dynamic expense;
-  final VoidCallback onTap;
-
-  const _ExpenseListItem({
-    Key? key,
-    required this.expense,
-    required this.onTap,
-  }) : super(key: key);
-
-  @override
-  Widget build(BuildContext context) {
-    return ListTile(
-      leading: _buildCategoryIcon(context),
-      title: Text(expense.title),
-      subtitle: Text(DateFormat.yMMMd().format(expense.date)),
-      trailing: Text(
-        '\$${expense.amount.toStringAsFixed(2)}',
-        style: TextStyle(
-          color: expense.amount < 0 
-            ? Theme.of(context).colorScheme.error 
-            : Theme.of(context).colorScheme.primary,
-        ),
-      ),
-      onTap: onTap,
-    );
-  }
-
-  Widget _buildCategoryIcon(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(8),
-      decoration: BoxDecoration(
-        color: Theme.of(context).colorScheme.primaryContainer,
-        borderRadius: BorderRadius.circular(8),
-      ),
-      child: Icon(
-        _getCategoryIcon(),
-        color: Theme.of(context).colorScheme.onPrimaryContainer,
-      ),
-    );
-  }
-
-  IconData _getCategoryIcon() {
-    switch (expense.category.toLowerCase()) {
-      case 'food':
-        return Icons.restaurant;
-      case 'transport':
-        return Icons.directions_car;
-      case 'shopping':
-        return Icons.shopping_bag;
-      case 'entertainment':
-        return Icons.movie;
-      case 'bills':
-        return Icons.receipt;
-      case 'health':
-        return Icons.medical_services;
-      default:
-        return Icons.attach_money;
-    }
   }
 }

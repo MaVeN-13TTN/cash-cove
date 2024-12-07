@@ -1,3 +1,0 @@
-"""
-Shared expenses migrations initialization.
-"""

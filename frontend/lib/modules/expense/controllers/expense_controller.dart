@@ -16,6 +16,7 @@ class ExpenseController extends GetxController {
   final Rx<ExpenseModel?> selectedExpense = Rx<ExpenseModel?>(null);
   final RxBool isLoading = false.obs;
   final RxString error = ''.obs;
+  final Rx<String?> selectedCategory = Rx<String?>(null);
 
   // Expense categories
   final RxList<String> expenseCategories = [
@@ -50,46 +51,40 @@ class ExpenseController extends GetxController {
     String? category,
     DateTime? startDate,
     DateTime? endDate,
-    String? budgetId,
+    int? limit,
   }) async {
-    if (!await checkExpensesExist()) {
-      // No expenses exist, fallback to empty state
-      expenses.clear();
-      isLoading.value = false;
-      return;
-    }
-
     try {
-      isLoading.value = true;
-      error.value = '';
+      // Use the passed category or the selected category from the observable
+      final effectiveCategory = category ?? selectedCategory.value;
 
-      if (!loadMore) {
-        _page = 1;
-        currentPage.value = 1;
-        expenses.clear();
-      } else {
-        _page++;
-        currentPage.value++;
-      }
+      isLoading.value = true;
+      
+      // If loadMore is true, increment page, otherwise reset to first page
+      _page = loadMore ? _page + 1 : 1;
 
       final fetchedExpenses = await _repository.getExpenses(
+        page: _page,
+        category: effectiveCategory,
         startDate: startDate,
         endDate: endDate,
-        category: category,
-        budgetId: budgetId,
+        limit: limit,
       );
 
-      if (loadMore) {
-        expenses.addAll(fetchedExpenses);
-      } else {
-        expenses.assignAll(fetchedExpenses);
+      // If not loading more, clear existing expenses
+      if (!loadMore) {
+        expenses.clear();
       }
 
+      // Add new expenses
+      expenses.addAll(fetchedExpenses);
+
+      // Update pagination state
       hasMoreExpenses.value = fetchedExpenses.isNotEmpty;
+      currentPage.value = _page;
+
     } catch (e) {
-      error.value = ErrorHandler.handleError(e);
+      ErrorHandler.handleError(e);
       hasMoreExpenses.value = false;
-      currentPage.value = _page - 1; // Revert page on error
     } finally {
       isLoading.value = false;
     }

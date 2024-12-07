@@ -172,6 +172,7 @@ class _BudgetFormState extends State<BudgetForm> {
             onPressed: _submitForm,
             child: Text(widget.budget != null ? 'Update Budget' : 'Create Budget'),
           ),
+          const SizedBox(height: 32),  
         ],
       ),
     );

@@ -29,6 +29,10 @@ abstract class AppRoutes {
   static const String transactionDetails = '/transactions/details';
   static const String transactionCategories = '/transactions/categories';
   
+  // Shared Expenses Routes
+  static const String sharedExpenses = '/shared-expenses';
+  static const String sharedExpenseDetails = '/shared-expenses/details';
+  
   // Report Routes
   static const String reports = '/reports';
   static const String reportDetails = '/reports/details';

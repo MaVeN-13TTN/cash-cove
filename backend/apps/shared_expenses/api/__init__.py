@@ -1,3 +1,0 @@
-"""
-Shared expenses API initialization.
-"""
