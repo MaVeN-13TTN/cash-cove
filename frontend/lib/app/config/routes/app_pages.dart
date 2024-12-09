@@ -1,12 +1,12 @@
 import 'package:get/get.dart';
 import '../../../modules/splash/screens/splash_screen.dart';
 import '../../../modules/splash/bindings/splash_binding.dart';
-import '../../../modules/onboarding/screens/onboarding_screen.dart';
-import '../../../modules/onboarding/bindings/onboarding_binding.dart';
+import '../../../modules/auth/bindings/login_binding.dart';
+import '../../../modules/auth/bindings/signup_binding.dart';
+import '../../../modules/auth/bindings/auth_binding.dart';
 import '../../../modules/auth/views/login_view.dart';
 import '../../../modules/auth/views/signup_view.dart';
 import '../../../modules/auth/views/forgot_password_view.dart';
-import '../../../modules/auth/bindings/auth_binding.dart';
 import '../../../modules/home/views/home_view.dart';
 import '../../../modules/home/bindings/home_binding.dart';
 import '../../../modules/dashboard/views/dashboard_view.dart';
@@ -32,32 +32,31 @@ class AppPages {
       page: () => const SplashScreen(),
       binding: SplashBinding(),
     ),
-    GetPage(
-      name: AppRoutes.onboarding,
-      page: () => const OnboardingScreen(),
-      binding: OnboardingBinding(),
-    ),
     // Auth Pages
     GetPage(
       name: AppRoutes.login,
       page: () => const LoginView(),
-      binding: AuthBinding(),
+      binding: LoginBinding(),
+      transition: Transition.fadeIn,
     ),
     GetPage(
       name: AppRoutes.register,
       page: () => const SignupView(),
-      binding: AuthBinding(),
+      binding: SignupBinding(),
+      transition: Transition.fadeIn,
     ),
     GetPage(
       name: AppRoutes.forgotPassword,
       page: () => ForgotPasswordView(),
       binding: AuthBinding(),
+      transition: Transition.fadeIn,
     ),
     // Main Pages
     GetPage(
       name: AppRoutes.home,
       page: () => const HomeView(),
       binding: HomeBinding(),
+      transition: Transition.fadeIn,
     ),
     GetPage(
       name: AppRoutes.dashboard,

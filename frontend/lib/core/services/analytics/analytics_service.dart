@@ -1,95 +1,103 @@
-import 'dart:async';
 import 'package:get/get.dart';
-import 'package:flutter/foundation.dart';
-import 'package:dio/dio.dart';
-import '../../utils/logger_utils.dart'; // Corrected import path
+import 'package:logging/logging.dart';
+import '../api/api_client.dart';
+import '../api/api_endpoints.dart';
+import '../api/api_exceptions.dart';
+import '../../../data/models/analytics/spending_analytics.dart';
+import '../../../data/models/analytics/budget_utilization.dart';
+import '../../../data/models/analytics/spending_trends.dart';
+import '../../../data/models/analytics/spending_insights.dart';
 
 /// Service responsible for tracking analytics events and user behavior
 class AnalyticsService extends GetxService {
-  static AnalyticsService get instance => Get.find<AnalyticsService>();
+  final ApiClient _apiClient;
+  final Logger _logger;
+  
+  // Observable states
+  final Rx<SpendingAnalytics?> spendingAnalytics = Rx<SpendingAnalytics?>(null);
+  final Rx<BudgetUtilization?> budgetUtilization = Rx<BudgetUtilization?>(null);
+  final Rx<SpendingTrends?> spendingTrends = Rx<SpendingTrends?>(null);
+  final Rx<SpendingInsights?> spendingInsights = Rx<SpendingInsights?>(null);
 
-  final RxBool _isInitialized = false.obs;
-  Timer? _batchTimer;
-  final List<Map<String, dynamic>> _eventQueue = [];
-  final Duration _batchInterval = const Duration(seconds: 30);
+  AnalyticsService({
+    ApiClient? apiClient,
+  }) : 
+    _apiClient = apiClient ?? Get.find<ApiClient>(),
+    _logger = Logger('AnalyticsService');
 
-  bool get isInitialized => _isInitialized.value;
+  Future<void> fetchSpendingAnalytics() async {
+    try {
+      final response = await _apiClient.dio.get(
+        ApiEndpoints.analyticsSpending,
+      );
+      
+      final analytics = SpendingAnalytics.fromJson(response.data);
+      spendingAnalytics.value = analytics;
+    } catch (e) {
+      _logger.severe('Error fetching spending analytics', e);
+      throw ApiException('Failed to fetch spending analytics');
+    }
+  }
+
+  Future<void> fetchBudgetUtilization() async {
+    try {
+      final response = await _apiClient.dio.get(
+        ApiEndpoints.analyticsUtilization,
+      );
+      
+      final utilization = BudgetUtilization.fromJson(response.data);
+      budgetUtilization.value = utilization;
+    } catch (e) {
+      _logger.severe('Error fetching budget utilization', e);
+      throw ApiException('Failed to fetch budget utilization');
+    }
+  }
+
+  Future<void> fetchSpendingTrends() async {
+    try {
+      final response = await _apiClient.dio.get(
+        ApiEndpoints.analyticsTrends,
+      );
+      
+      final trends = SpendingTrends.fromJson(response.data);
+      spendingTrends.value = trends;
+    } catch (e) {
+      _logger.severe('Error fetching spending trends', e);
+      throw ApiException('Failed to fetch spending trends');
+    }
+  }
+
+  Future<void> fetchSpendingInsights() async {
+    try {
+      final response = await _apiClient.dio.get(
+        ApiEndpoints.analyticsInsights,
+      );
+      
+      final insights = SpendingInsights.fromJson(response.data);
+      spendingInsights.value = insights;
+    } catch (e) {
+      _logger.severe('Error fetching spending insights', e);
+      throw ApiException('Failed to fetch spending insights');
+    }
+  }
+
+  Future<void> refreshAllAnalytics() async {
+    try {
+      await Future.wait([
+        fetchSpendingAnalytics(),
+        fetchBudgetUtilization(),
+        fetchSpendingTrends(),
+        fetchSpendingInsights(),
+      ]);
+    } catch (e) {
+      _logger.severe('Error refreshing analytics', e);
+      throw ApiException('Failed to refresh analytics');
+    }
+  }
 
   @override
   void onInit() {
     super.onInit();
-    initialize();
+    refreshAllAnalytics();
   }
-
-  Future<void> initialize() async {
-    if (!_isInitialized.value) {
-      try {
-        // Add initialization logic here (e.g., setting up API keys)
-        _isInitialized.value = true;
-        _startBatchProcessing();
-      } catch (e) {
-        LoggerUtils.error('Failed to initialize AnalyticsService: $e');
-        _isInitialized.value = false;
-      }
-    }
-  }
-
-  /// Track a custom event with optional parameters
-  void trackEvent(String eventName, {Map<String, dynamic>? parameters}) {
-    _eventQueue.add({'event': eventName, 'parameters': parameters});
-  }
-
-  /// Process batch of events
-  Future<void> _processBatch() async {
-    if (_eventQueue.isEmpty) return;
-
-    try {
-      final batch = List<Map<String, dynamic>>.from(_eventQueue);
-      _eventQueue.clear();
-
-      // Implement actual analytics API call
-      try {
-        final response = await Dio().post(
-          'https://your-backend-url.com/api/analytics/', // Replace with actual endpoint
-          data: batch,
-          options: Options(
-            headers: {
-              'Content-Type': 'application/json',
-              'Authorization': 'Bearer your_token', // Replace with actual token
-            },
-          ),
-        );
-
-        if (response.statusCode == 200) {
-          LoggerUtils.info('Analytics batch processed successfully');
-        } else {
-          LoggerUtils.error('Failed to process analytics batch: ${response.statusCode}');
-        }
-      } catch (e) {
-        LoggerUtils.error('Error sending analytics batch', e);
-      }
-
-      if (kDebugMode) {
-        LoggerUtils.debug('Processing analytics batch: $batch');
-      }
-    } catch (e) {
-      LoggerUtils.error('Failed to process analytics batch', e);
-      // Re-add events to queue on failure
-      _eventQueue.addAll(_eventQueue);
-    }
-  }
-
-  /// Start batch processing timer
-  void _startBatchProcessing() {
-    _batchTimer?.cancel();
-    _batchTimer = Timer.periodic(_batchInterval, (timer) {
-      _processBatch();
-    });
-  }
-
-  /// Get current event queue (for testing/debugging)
-  List<Map<String, dynamic>> get eventQueue => List.from(_eventQueue);
-
-  /// Clear event queue (for testing/debugging)
-  void clearQueue() => _eventQueue.clear();
 }

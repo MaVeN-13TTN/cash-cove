@@ -62,9 +62,8 @@ class NotificationRepository {
     await _notificationsPlugin.show(
       notification.id.hashCode,
       notification.title,
-      notification.body,
+      notification.message,
       details,
-      payload: notification.payload,
     );
   }
 
@@ -90,13 +89,12 @@ class NotificationRepository {
     await _notificationsPlugin.zonedSchedule(
       notification.id.hashCode,
       notification.title,
-      notification.body,
+      notification.message,
       _convertToTZDateTime(scheduledDate),
       details,
       androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
       uiLocalNotificationDateInterpretation:
           UILocalNotificationDateInterpretation.absoluteTime,
-      payload: notification.payload,
     );
   }
 

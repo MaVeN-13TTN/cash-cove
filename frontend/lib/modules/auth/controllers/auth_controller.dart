@@ -1,10 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'dart:async';
+import 'package:dio/dio.dart' show DioException;
 import '../../../core/network/dio_client.dart';
 import '../../../core/utils/logger_utils.dart';
 import '../../../core/utils/storage_utils.dart';
 import '../../../app/config/routes/app_routes.dart';
+import 'package:google_sign_in/google_sign_in.dart';
+import 'package:flutter_facebook_auth/flutter_facebook_auth.dart';
+import 'package:sign_in_with_apple/sign_in_with_apple.dart';
 
 class AuthController extends GetxController {
   final DioClient _dioClient;
@@ -63,8 +67,8 @@ class AuthController extends GetxController {
 
       if (response.statusCode == 200) {
         final tokens = response.data;
-        await StorageUtils.saveAccessToken(tokens['access']);
-        await StorageUtils.saveRefreshToken(tokens['refresh']);
+        await StorageUtils.setAccessToken(tokens['access']);
+        await StorageUtils.setRefreshToken(tokens['refresh']);
         await checkAuthStatus();
       }
     } catch (e) {
@@ -79,12 +83,22 @@ class AuthController extends GetxController {
     }
   }
 
-  Future<void> signup(String name, String email, String password, String confirmPassword, String username, bool termsAccepted) async {
+  Future<void> signup(String name, String email, String password,
+      String confirmPassword, String username, bool termsAccepted) async {
     try {
+      // Show loading dialog
+      Get.dialog(
+        const Center(
+          child: CircularProgressIndicator(),
+        ),
+        barrierDismissible: false,
+      );
+
       _isLoading.value = true;
       _error.value = '';
 
-      final response = await _dioClient.dio.post('/auth/register/', data: {
+      // Step 1: Register User
+      final registrationResponse = await _dioClient.dio.post('/auth/register/', data: {
         'name': name,
         'email': email,
         'password': password,
@@ -93,26 +107,74 @@ class AuthController extends GetxController {
         'terms_accepted': termsAccepted,
       });
 
-      if (response.statusCode == 200 || response.statusCode == 201) {
-        final tokens = response.data;
-        await StorageUtils.saveAccessToken(tokens['access']);
-        await StorageUtils.saveRefreshToken(tokens['refresh']);
-        await checkAuthStatus();
+      if (registrationResponse.statusCode == 201) {
+        // Log registration response for debugging
+        LoggerUtils.debug('Registration Response: ${registrationResponse.data}');
+
+        // Close loading dialog
+        Get.back();
+
+        // Show signup success snackbar
         Get.snackbar(
           'Signup Successful',
-          'You have been registered successfully!',
+          'Please log in with your new account',
           snackPosition: SnackPosition.BOTTOM,
+          duration: const Duration(seconds: 3),
+          backgroundColor: Colors.green,
+          colorText: Colors.white,
         );
-        Future.delayed(const Duration(seconds: 2), () {
-          Get.offAllNamed(AppRoutes.login);
+
+        // Navigate to login view with pre-filled email
+        await Future.delayed(const Duration(seconds: 3), () {
+          Get.offNamed(
+            AppRoutes.login, 
+            arguments: {
+              'pre_fill_email': email,
+              'signup_success': true
+            }
+          );
         });
+      } else {
+        // Close loading dialog
+        Get.back();
+
+        // Handle unexpected registration status codes
+        throw Exception('Signup failed with status code: ${registrationResponse.statusCode}');
       }
     } catch (e) {
+      // Close loading dialog
+      if (Get.isDialogOpen ?? false) {
+        Get.back();
+      }
+
+      // More detailed error logging
+      LoggerUtils.error('Signup Error', e);
+
+      // Determine the most appropriate error message
+      String errorMessage;
+      if (e is DioException) {
+        // Handle Dio-specific errors
+        errorMessage = e.response?.data?['detail'] ?? 
+                       e.response?.data?['error'] ?? 
+                       e.message ?? 
+                       'An unexpected network error occurred';
+      } else {
+        errorMessage = e.toString();
+      }
+
+      // Update error state
+      _error.value = errorMessage;
+
+      // Show error snackbar
       Get.snackbar(
         'Signup Error',
-        e.toString(),
+        errorMessage,
         snackPosition: SnackPosition.BOTTOM,
+        backgroundColor: Colors.red,
+        colorText: Colors.white,
+        duration: const Duration(seconds: 5),
       );
+
       rethrow;
     } finally {
       _isLoading.value = false;
@@ -121,67 +183,107 @@ class AuthController extends GetxController {
 
   Future<void> signInWithGoogle() async {
     try {
+      _isLoading.value = true;
+      // Initialize Google Sign In
+      final GoogleSignIn googleSignIn = GoogleSignIn();
+      final GoogleSignInAccount? googleUser = await googleSignIn.signIn();
+      
+      if (googleUser == null) return;
+
+      // Get auth details from request
+      final GoogleSignInAuthentication googleAuth = await googleUser.authentication;
+      
+      // Send token to backend
       final response = await _dioClient.dio.post('/auth/google/', data: {
-        // Add necessary Google sign-in data
+        'token': googleAuth.idToken,
       });
 
       if (response.statusCode == 200) {
         final tokens = response.data;
-        await StorageUtils.saveAccessToken(tokens['access']);
-        await StorageUtils.saveRefreshToken(tokens['refresh']);
+        await StorageUtils.setAccessToken(tokens['access']);
+        await StorageUtils.setRefreshToken(tokens['refresh']);
+        await StorageUtils.setUserData(response.data['user']);
         await checkAuthStatus();
       }
     } catch (e) {
-      Get.snackbar(
-        'Google Sign-In Error',
-        e.toString(),
-        snackPosition: SnackPosition.BOTTOM,
-      );
+      _error.value = 'Google sign in failed';
+      LoggerUtils.error('Google Sign In Error', e);
       rethrow;
+    } finally {
+      _isLoading.value = false;
     }
   }
 
   Future<void> signInWithFacebook() async {
     try {
+      _isLoading.value = true;
+      
+      // Initialize Facebook Login
+      final LoginResult result = await FacebookAuth.instance.login();
+      
+      if (result.status != LoginStatus.success) {
+        throw 'Facebook login failed';
+      }
+
+      // Get user data
+      final userData = await FacebookAuth.instance.getUserData();
+      
+      // Send token to backend
       final response = await _dioClient.dio.post('/auth/facebook/', data: {
-        // Add necessary Facebook sign-in data
+        'token': result.accessToken?.token,
+        'userData': userData,
       });
 
       if (response.statusCode == 200) {
         final tokens = response.data;
-        await StorageUtils.saveAccessToken(tokens['access']);
-        await StorageUtils.saveRefreshToken(tokens['refresh']);
+        await StorageUtils.setAccessToken(tokens['access']);
+        await StorageUtils.setRefreshToken(tokens['refresh']);
+        await StorageUtils.setUserData(response.data['user']);
         await checkAuthStatus();
       }
     } catch (e) {
-      Get.snackbar(
-        'Facebook Sign-In Error',
-        e.toString(),
-        snackPosition: SnackPosition.BOTTOM,
-      );
+      _error.value = 'Facebook sign in failed';
+      LoggerUtils.error('Facebook Sign In Error', e);
       rethrow;
+    } finally {
+      _isLoading.value = false;
     }
   }
 
   Future<void> signInWithApple() async {
     try {
+      _isLoading.value = true;
+      
+      // Get Apple credentials
+      final credential = await SignInWithApple.getAppleIDCredential(
+        scopes: [
+          AppleIDAuthorizationScopes.email,
+          AppleIDAuthorizationScopes.fullName,
+        ],
+      );
+      
+      // Send credentials to backend
       final response = await _dioClient.dio.post('/auth/apple/', data: {
-        // Add necessary Apple sign-in data
+        'identityToken': credential.identityToken,
+        'authorizationCode': credential.authorizationCode,
+        'givenName': credential.givenName,
+        'familyName': credential.familyName,
+        'email': credential.email,
       });
 
       if (response.statusCode == 200) {
         final tokens = response.data;
-        await StorageUtils.saveAccessToken(tokens['access']);
-        await StorageUtils.saveRefreshToken(tokens['refresh']);
+        await StorageUtils.setAccessToken(tokens['access']);
+        await StorageUtils.setRefreshToken(tokens['refresh']);
+        await StorageUtils.setUserData(response.data['user']);
         await checkAuthStatus();
       }
     } catch (e) {
-      Get.snackbar(
-        'Apple Sign-In Error',
-        e.toString(),
-        snackPosition: SnackPosition.BOTTOM,
-      );
+      _error.value = 'Apple sign in failed';
+      LoggerUtils.error('Apple Sign In Error', e);
       rethrow;
+    } finally {
+      _isLoading.value = false;
     }
   }
 
@@ -235,7 +337,8 @@ class AuthController extends GetxController {
       _isLoading.value = true;
       _error.value = '';
 
-      final response = await _dioClient.dio.post('/auth/reset-password/', data: {
+      final response =
+          await _dioClient.dio.post('/auth/reset-password/', data: {
         'email': email,
       });
 
@@ -264,7 +367,8 @@ class AuthController extends GetxController {
       _isLoading.value = true;
       _error.value = '';
 
-      final response = await _dioClient.dio.post('/auth/reset-password-confirm/', data: {
+      final response =
+          await _dioClient.dio.post('/auth/reset-password-confirm/', data: {
         'token': token,
         'new_password': newPassword,
       });
@@ -295,7 +399,8 @@ class AuthController extends GetxController {
       _isLoading.value = true;
       _error.value = '';
 
-      final response = await _dioClient.dio.post('/auth/forgot-password/', data: {
+      final response =
+          await _dioClient.dio.post('/auth/forgot-password/', data: {
         'email': email,
       });
 
@@ -350,8 +455,8 @@ class AuthController extends GetxController {
 
       if (response.statusCode == 200) {
         final tokens = response.data;
-        await StorageUtils.saveAccessToken(tokens['access']);
-        await StorageUtils.saveRefreshToken(tokens['refresh']);
+        await StorageUtils.setAccessToken(tokens['access']);
+        await StorageUtils.setRefreshToken(tokens['refresh']);
         await checkAuthStatus();
       }
     } catch (e) {
@@ -434,7 +539,33 @@ class AuthController extends GetxController {
     }
   }
 
-  // TODO: Implement Google Sign-In
-  // TODO: Implement Facebook Sign-In
-  // TODO: Implement Apple Sign-In
+  Future<void> updateRegistrationState({
+    required String email,
+    required bool requiresVerification,
+  }) async {
+    try {
+      LoggerUtils.info('Updating registration state for: $email');
+      
+      // Store temporary email for login
+      await StorageUtils.setTemporaryEmail(email);
+      
+      // Update verification status
+      _isEmailVerified.value = !requiresVerification;
+      
+      // Store verification requirement
+      await StorageUtils.setVerificationRequired(requiresVerification);
+      
+      // Update user data with registration info
+      _user.value = {
+        'email': email,
+        'email_verified': !requiresVerification,
+        'registration_completed': true,
+      };
+      
+      LoggerUtils.info('Registration state updated successfully');
+    } catch (e) {
+      LoggerUtils.error('Error updating registration state', e);
+      rethrow;
+    }
+  }
 }

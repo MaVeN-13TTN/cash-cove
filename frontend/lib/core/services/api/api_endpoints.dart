@@ -34,23 +34,29 @@ class ApiEndpoints {
   static const String budgets = '/budgets/';
   static const String budgetCategories = '/budgets/categories/';
   static const String budgetSharing = '/budgets/sharing/';
+  static const String activeBudgets = '/budgets/active/';
+  static const String copyBudget = '/budgets/{id}/copy/';
 
   // Expense endpoints
   static const String expenses = '/expenses/';
   static const String recurringExpenses = '/expenses/recurring/';
   static const String expenseCategories = '/expenses/categories/';
   static const String expenseAttachments = '/expenses/attachments/';
+  static const String expenseSummary = '/expenses/summary/';
 
   // Analytics endpoints
   static const String analyticsSpending = '/analytics/spending/';
+  static const String analyticsUtilization = '/analytics/utilization/';
   static const String analyticsTrends = '/analytics/trends/';
   static const String analyticsInsights = '/analytics/insights/';
-  static const String analyticsUtilization = '/analytics/utilization/';
   static const String analyticsEvents = '/analytics/events/';
 
   // Notifications endpoints
   static const String notifications = '/notifications/';
   static const String notificationSettings = '/notifications/settings/';
+  static const String markAllNotificationsRead = '/notifications/mark_all_read/';
+  static const String notificationBulkAction = '/notifications/bulk_action/';
+  static const String notificationCounts = '/notifications/counts/';
 
   // Shared expenses
   static const String sharedExpenses = '/shared/expenses/';

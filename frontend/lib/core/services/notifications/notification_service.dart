@@ -1,30 +1,40 @@
 import 'dart:async';
+import 'package:dio/dio.dart';
 import 'package:get/get.dart';
 import 'package:web_socket_channel/web_socket_channel.dart';
-import '../../../data/models/notification/notification_model.dart';
+import 'package:logging/logging.dart';
 import '../api/api_client.dart';
+import '../api/api_endpoints.dart';
+import '../api/api_exceptions.dart';
 import '../auth/token_manager.dart';
-import '../../utils/logger_utils.dart';
+import '../../../data/models/notification/notification_model.dart';
 
 class NotificationService extends GetxService {
-  static NotificationService get to => Get.find();
-  
   final RxList<NotificationModel> notifications = <NotificationModel>[].obs;
   final RxInt unreadCount = 0.obs;
+  final RxBool isLoading = false.obs;
   WebSocketChannel? _channel;
   StreamSubscription? _subscription;
-  final _apiClient = Get.find<ApiClient>();
-  final _tokenManager = Get.find<TokenManager>();
+  final ApiClient _apiClient;
+  final TokenManager _tokenManager;
+  final Logger _logger;
 
   // Pagination
   int _page = 1;
-  bool _hasMore = true;
   static const int _perPage = 20;
+  bool _hasMore = true;
+
+  NotificationService({
+    ApiClient? apiClient,
+    TokenManager? tokenManager,
+  })  : _apiClient = apiClient ?? Get.find<ApiClient>(),
+        _tokenManager = tokenManager ?? Get.find<TokenManager>(),
+        _logger = Logger('NotificationService');
 
   @override
   void onInit() {
     super.onInit();
-    _initWebSocket();
+    _initializeWebSocket();
     fetchNotifications();
   }
 
@@ -35,54 +45,6 @@ class NotificationService extends GetxService {
     super.onClose();
   }
 
-  void _initWebSocket() async {
-    final token = await _tokenManager.getAccessToken();
-    if (token == null) return;
-
-    final wsUrl = Uri.parse('ws://your-backend-url/ws/notifications/')
-        .replace(scheme: 'ws');
-
-    _channel = WebSocketChannel.connect(
-      wsUrl,
-      protocols: ['Bearer $token'],
-    );
-
-    _subscription = _channel?.stream.listen(
-      (message) => _handleWebSocketMessage(message),
-      onError: (error) => LoggerUtils.error('WebSocket Error', error),
-      onDone: () => _reconnectWebSocket(),
-    );
-  }
-
-  void _reconnectWebSocket() {
-    Future.delayed(const Duration(seconds: 5), () {
-      _initWebSocket();
-    });
-  }
-
-  void _handleWebSocketMessage(dynamic message) {
-    try {
-      final notification = NotificationModel.fromJson(message);
-      notifications.insert(0, notification);
-      if (!notification.isRead) {
-        unreadCount.value++;
-      }
-      _showNotification(notification);
-    } catch (e) {
-      LoggerUtils.error('Error handling notification', e);
-    }
-  }
-
-  void _showNotification(NotificationModel notification) {
-    Get.snackbar(
-      notification.title,
-      notification.body,
-      duration: const Duration(seconds: 4),
-      snackPosition: SnackPosition.TOP,
-      onTap: (_) => handleNotificationTap(notification),
-    );
-  }
-
   Future<void> fetchNotifications({bool refresh = false}) async {
     if (refresh) {
       _page = 1;
@@ -90,112 +52,165 @@ class NotificationService extends GetxService {
       notifications.clear();
     }
 
-    if (!_hasMore) return;
+    if (!_hasMore || isLoading.value) return;
 
     try {
-      final response = await _apiClient.get(
+      isLoading.value = true;
+      final response = await _apiClient.dio.get(
         '/notifications/',
-        queryParameters: {'page': _page, 'per_page': _perPage},
+        queryParameters: {
+          'page': _page,
+          'per_page': _perPage,
+        },
       );
 
-      final List<NotificationModel> newNotifications = (response.data['results'] as List)
-          .map((json) => NotificationModel.fromJson(json))
-          .toList();
+      final List<NotificationModel> newNotifications =
+          (response.data['results'] as List)
+              .map((json) => NotificationModel.fromJson(json))
+              .toList();
 
       if (newNotifications.length < _perPage) {
         _hasMore = false;
       }
 
       notifications.addAll(newNotifications);
+      _updateUnreadCount();
       _page++;
-
-      // Update unread count
-      unreadCount.value = notifications.where((n) => !n.isRead).length;
     } catch (e) {
-      LoggerUtils.error('Error fetching notifications', e);
+      _logger.severe('Error fetching notifications', e);
       rethrow;
+    } finally {
+      isLoading.value = false;
     }
   }
 
   Future<void> markAsRead(String notificationId) async {
     try {
-      await _apiClient.post('/notifications/$notificationId/read/');
-      
+      await _apiClient.dio.post('/notifications/$notificationId/read/');
+
       final index = notifications.indexWhere((n) => n.id == notificationId);
       if (index != -1) {
         final notification = notifications[index];
-        notifications[index] = NotificationModel(
-          id: notification.id,
-          userId: notification.userId,
-          title: notification.title,
-          body: notification.body,
-          type: notification.type,
-          data: notification.data,
+        notifications[index] = notification.copyWith(
           isRead: true,
-          createdAt: notification.createdAt,
           readAt: DateTime.now(),
-          payload: notification.payload,
         );
-        unreadCount.value--;
+        _updateUnreadCount();
       }
     } catch (e) {
-      LoggerUtils.error('Error marking notification as read', e);
+      _logger.severe('Error marking notification as read', e);
       rethrow;
     }
   }
 
   Future<void> markAllAsRead() async {
     try {
-      await _apiClient.post('/notifications/mark-all-read/');
-      
-      notifications.assignAll(notifications.map((notification) => NotificationModel(
-        id: notification.id,
-        userId: notification.userId,
-        title: notification.title,
-        body: notification.body,
-        type: notification.type,
-        data: notification.data,
-        isRead: true,
-        createdAt: notification.createdAt,
-        readAt: DateTime.now(),
-        payload: notification.payload,
-      )).toList());
-      
-      unreadCount.value = 0;
+      await _apiClient.dio.post(
+        ApiEndpoints.markAllNotificationsRead,
+        options: Options(
+          headers: {'Cache-Control': 'no-cache'},
+        ),
+      );
+
+      notifications.assignAll(notifications
+          .map(
+            (notification) => notification.copyWith(
+              isRead: true,
+              readAt: DateTime.now(),
+            ),
+          )
+          .toList());
+
+      _updateUnreadCount();
     } catch (e) {
-      LoggerUtils.error('Error marking all notifications as read', e);
-      rethrow;
+      _logger.severe('Error marking all notifications as read', e);
+      throw ApiException('Failed to mark notifications as read');
     }
   }
 
+  Future<void> bulkAction({
+    required List<String> notificationIds,
+    required String action,
+  }) async {
+    try {
+      await _apiClient.dio.post(
+        ApiEndpoints.notificationBulkAction,
+        data: {
+          'notification_ids': notificationIds,
+          'action': action,
+        },
+      );
+
+      if (action == 'mark_read') {
+        notifications.assignAll(notifications.map((notification) {
+          if (notificationIds.contains(notification.id)) {
+            return notification.copyWith(
+              isRead: true,
+              readAt: DateTime.now(),
+            );
+          }
+          return notification;
+        }).toList());
+
+        _updateUnreadCount();
+      }
+    } catch (e) {
+      _logger.severe('Error performing bulk action on notifications', e);
+      throw ApiException('Failed to perform bulk action on notifications');
+    }
+  }
+
+  Future<Map<String, int>> getNotificationCounts() async {
+    try {
+      final response = await _apiClient.dio.get(
+        ApiEndpoints.notificationCounts,
+        options: Options(
+          headers: {'Cache-Control': 'max-age=60'}, // 1 minute cache
+        ),
+      );
+      return Map<String, int>.from(response.data);
+    } catch (e) {
+      _logger.severe('Error fetching notification counts', e);
+      throw ApiException('Failed to fetch notification counts');
+    }
+  }
+
+  Future<void> _initializeWebSocket() async {
+    final token = await _tokenManager.getAccessToken();
+    // Check if token exists before proceeding
+    if (token == null || token.isEmpty) return;
+
+    final wsUrl = 'ws://localhost:8000/ws/notifications/?token=$token';
+    _channel = WebSocketChannel.connect(Uri.parse(wsUrl));
+
+    _subscription = _channel?.stream.listen(
+      (data) {
+        final notification = NotificationModel.fromJson(data);
+        notifications.insert(0, notification);
+        if (notification.isRead == false) {
+          unreadCount.value++;
+        }
+      },
+      onError: (error) {
+        _logger.severe('WebSocket error', error);
+      },
+      onDone: () {
+        _logger.info('WebSocket connection closed');
+      },
+    );
+  }
+
+  void _updateUnreadCount() {
+    unreadCount.value = notifications.where((n) => !n.isRead).length;
+  }
+
   void handleNotificationTap(NotificationModel notification) {
-    // Mark as read
     if (!notification.isRead) {
       markAsRead(notification.id);
     }
-
-    // Handle navigation based on notification type
-    switch (notification.type) {
-      case 'BUDGET_ALERT':
-      case 'BUDGET_EXCEEDED':
-        final budgetId = notification.data?['budget_id'];
-        if (budgetId != null) {
-          Get.toNamed('/budgets/$budgetId');
-        }
-        break;
-      case 'EXPENSE_ALERT':
-      case 'RECURRING_EXPENSE':
-        final expenseId = notification.data?['expense_id'];
-        if (expenseId != null) {
-          Get.toNamed('/expenses/$expenseId');
-        }
-        break;
-      case 'THRESHOLD_REACHED':
-        Get.toNamed('/analytics');
-        break;
-      default:
-        // Handle other notification types
-        break;
+    // Handle navigation or action based on notification type
+    if (notification.actionUrl != null) {
+      // Handle navigation
     }
   }
 }

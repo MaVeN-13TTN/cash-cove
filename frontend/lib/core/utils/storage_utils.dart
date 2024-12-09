@@ -1,197 +1,88 @@
 import 'dart:convert';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'package:get_storage/get_storage.dart';
 
 /// Utility class for secure storage operations
 class StorageUtils {
-  static const _storage = FlutterSecureStorage();
+  static const _secureStorage = FlutterSecureStorage();
+  static final _storage = GetStorage();
 
-  /// Saves a value securely
-  static Future<void> saveSecure(String key, String value) async {
-    await _storage.write(key: key, value: value);
+  // Token Management
+  static Future<void> setAccessToken(String token) async {
+    await _secureStorage.write(key: 'access_token', value: token);
   }
 
-  /// Retrieves a securely stored value
-  static Future<String?> getSecure(String key) async {
-    return await _storage.read(key: key);
-  }
-
-  /// Deletes a securely stored value
-  static Future<void> deleteSecure(String key) async {
-    await _storage.delete(key: key);
-  }
-
-  /// Saves a map as JSON string
-  static Future<void> saveMap(String key, Map<String, dynamic> value) async {
-    final jsonString = jsonEncode(value);
-    await saveSecure(key, jsonString);
-  }
-
-  /// Retrieves a map from stored JSON string
-  static Future<Map<String, dynamic>?> getMap(String key) async {
-    final jsonString = await getSecure(key);
-    if (jsonString == null) return null;
-    return jsonDecode(jsonString) as Map<String, dynamic>;
-  }
-
-  /// Checks if a key exists in storage
-  static Future<bool> containsKey(String key) async {
-    final value = await getSecure(key);
-    return value != null;
-  }
-
-  /// Deletes all stored values
-  static Future<void> deleteAll() async {
-    await _storage.deleteAll();
-  }
-
-  /// Gets all stored keys
-  static Future<Set<String>> getAllKeys() async {
-    final all = await _storage.readAll();
-    return all.keys.toSet();
-  }
-
-  /// Gets all stored key-value pairs
-  static Future<Map<String, String>> getAll() async {
-    return await _storage.readAll();
-  }
-
-  /// Saves multiple key-value pairs at once
-  static Future<void> saveMultiple(Map<String, String> entries) async {
-    for (final entry in entries.entries) {
-      await saveSecure(entry.key, entry.value);
-    }
-  }
-
-  // Auth specific methods
-  static const _userKey = 'user_data';
-  static const _rememberMeKey = 'remember_me';
-  static const _biometricEnabledKey = 'biometric_enabled';
-  static const _savedEmailKey = 'saved_email';
-
-  /// Token-specific storage keys
-  static const String _accessTokenKey = 'access_token';
-  static const String _refreshTokenKey = 'refresh_token';
-
-  /// Saves an authentication token
-  static Future<void> saveToken(String type, String token) async {
-    await saveSecure(type == 'access_token' ? _accessTokenKey : _refreshTokenKey, token);
-  }
-
-  /// Gets the access token
   static Future<String?> getAccessToken() async {
-    return await getSecure(_accessTokenKey);
+    return await _secureStorage.read(key: 'access_token');
   }
 
-  /// Gets the refresh token
+  static Future<void> setRefreshToken(String token) async {
+    await _secureStorage.write(key: 'refresh_token', value: token);
+  }
+
   static Future<String?> getRefreshToken() async {
-    return await getSecure(_refreshTokenKey);
+    return await _secureStorage.read(key: 'refresh_token');
   }
 
-  /// Clears authentication tokens
   static Future<void> clearTokens() async {
-    await deleteSecure(_accessTokenKey);
-    await deleteSecure(_refreshTokenKey);
+    await _secureStorage.delete(key: 'access_token');
+    await _secureStorage.delete(key: 'refresh_token');
   }
 
-  /// Saves the user data
-  static Future<void> saveUser(Map<String, dynamic> userData) async {
-    await saveMap(_userKey, userData);
+  // User Data Management
+  static Future<void> setUserData(Map<String, dynamic> userData) async {
+    await _storage.write('user_data', json.encode(userData));
   }
 
-  /// Gets the stored user data
-  static Future<Map<String, dynamic>?> getUser() async {
-    return await getMap(_userKey);
+  static Map<String, dynamic>? getUserData() {
+    final data = _storage.read('user_data');
+    if (data != null) {
+      return json.decode(data);
+    }
+    return null;
   }
 
-  /// Deletes the user data
-  static Future<void> deleteUser() async {
-    await deleteSecure(_userKey);
+  static Future<void> clearUserData() async {
+    await _storage.remove('user_data');
   }
 
-  /// Saves the remember me preference
-  static Future<void> saveRememberMe(bool value) async {
-    await saveSecure(_rememberMeKey, value.toString());
+  // Temporary Email Storage
+  static Future<void> setTemporaryEmail(String email) async {
+    await _storage.write('temp_email', email);
   }
 
-  /// Gets the stored remember me preference
-  static Future<bool> getRememberMe() async {
-    final value = await getSecure(_rememberMeKey);
-    return value == 'true';
+  static Future<String?> getTemporaryEmail() async {
+    return _storage.read('temp_email');
   }
 
-  /// Saves the biometric authentication preference
-  static Future<void> saveBiometricEnabled(bool value) async {
-    await saveSecure(_biometricEnabledKey, value.toString());
+  static Future<void> clearTemporaryEmail() async {
+    await _storage.remove('temp_email');
   }
 
-  /// Gets the stored biometric authentication preference
-  static Future<bool> getBiometricEnabled() async {
-    final value = await getSecure(_biometricEnabledKey);
-    return value == 'true';
+  // Verification State Management
+  static Future<void> setVerificationRequired(bool required) async {
+    await _storage.write('requires_verification', required);
   }
 
-  /// Saves the email for remember me feature
-  static Future<void> saveEmail(String email) async {
-    await saveSecure(_savedEmailKey, email);
+  static bool getVerificationRequired() {
+    return _storage.read('requires_verification') ?? false;
   }
 
-  /// Gets the saved email
-  static Future<String?> getSavedEmail() async {
-    return await getSecure(_savedEmailKey);
+  // General Storage Methods
+  static Future<void> saveSecure(String key, String value) async {
+    await _secureStorage.write(key: key, value: value);
   }
 
-  /// Clears all authentication related data
-  static Future<void> clearAuthData() async {
-    await deleteSecure(_userKey);
-    // Don't clear remember me preference and saved email
+  static Future<String?> getSecure(String key) async {
+    return await _secureStorage.read(key: key);
   }
 
-  // App Settings
-  static Future<void> saveSettings(Map<String, dynamic> settings) async {
-    await saveMap('app_settings', settings);
+  static Future<void> deleteSecure(String key) async {
+    await _secureStorage.delete(key: key);
   }
 
-  static Future<Map<String, dynamic>> getSettings() async {
-    final settings = await getMap('app_settings');
-    return settings ?? {};
-  }
-
-  // Theme
-  static const _themeKey = 'theme';
-
-  static Future<void> saveTheme(String theme) async {
-    await saveSecure(_themeKey, theme);
-  }
-
-  static Future<String?> getThemeMode() async {
-    return await getSecure(_themeKey);
-  }
-
-  // Clear All Data
   static Future<void> clearAll() async {
-    await deleteAll();
-  }
-
-  // Generic Save/Get methods
-  static Future<void> saveData(String key, String value) async {
-    await saveSecure(key, value);
-  }
-
-  static Future<String?> getData(String key) async {
-    return await getSecure(key);
-  }
-
-  static Future<void> deleteData(String key) async {
-    await deleteSecure(key);
-  }
-
-  /// Saves the access token securely
-  static Future<void> saveAccessToken(String token) async {
-    await saveSecure('access_token', token);
-  }
-
-  /// Saves the refresh token securely
-  static Future<void> saveRefreshToken(String token) async {
-    await saveSecure('refresh_token', token);
+    await _secureStorage.deleteAll();
+    await _storage.erase();
   }
 }

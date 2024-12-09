@@ -81,7 +81,7 @@ class _SignupViewState extends State<SignupView> {
         child: SingleChildScrollView(
           padding: const EdgeInsets.all(24.0),
           child: Form(
-            key: controller.formKey,
+            key: SignupController.formKey,
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
@@ -125,14 +125,34 @@ class _SignupViewState extends State<SignupView> {
                 const SizedBox(height: 16),
 
                 // Email Field
-                AppTextField(
-                  controller: controller.emailController,
-                  label: 'Email',
-                  hint: 'Enter your email',
-                  keyboardType: TextInputType.emailAddress,
-                  prefixIcon: Icons.email_outlined,
-                  validator: controller.validateEmail,
-                ),
+                Obx(() => Stack(
+                  alignment: Alignment.centerRight,
+                  children: [
+                    AppTextField(
+                      controller: controller.emailController,
+                      label: 'Email',
+                      hint: 'Enter your email',
+                      keyboardType: TextInputType.emailAddress,
+                      prefixIcon: Icons.email_outlined,
+                      validator: controller.validateEmail,
+                      errorText: controller.emailError.isNotEmpty ? controller.emailError : null,
+                    ),
+                    if (controller.isCheckingEmail)
+                      Positioned(
+                        right: 12,
+                        child: SizedBox(
+                          width: 20,
+                          height: 20,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            valueColor: AlwaysStoppedAnimation<Color>(
+                              Theme.of(context).primaryColor,
+                            ),
+                          ),
+                        ),
+                      ),
+                  ],
+                )),
                 const SizedBox(height: 16),
 
                 // Password Field

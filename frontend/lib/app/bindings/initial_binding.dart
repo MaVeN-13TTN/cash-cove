@@ -10,6 +10,7 @@ import '../../core/services/dialog/dialog_service.dart';
 import '../../modules/auth/controllers/auth_controller.dart';
 import '../../core/services/hive_service.dart';
 import '../../data/providers/api_provider.dart';
+import '../../core/services/error/error_service.dart';
 
 class InitialBinding extends Bindings {
   @override
@@ -60,6 +61,9 @@ class InitialBinding extends Bindings {
     // Dialog Service
     final dialogService = DialogService(navigatorKey: navigatorKey);
     Get.put<DialogService>(dialogService, permanent: true);
+
+    // Error Service
+    Get.put(ErrorService(), permanent: true);
 
     // Auth Service
     final authService = AuthService(

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:get_storage/get_storage.dart';
 import 'package:dio/dio.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -21,6 +22,7 @@ const String baseUrl = 'http://127.0.0.1:8000/api/v1';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  await GetStorage.init();  // Initialize GetStorage
 
   // Initialize Hive using the centralized HiveService
   final hiveService = HiveService();

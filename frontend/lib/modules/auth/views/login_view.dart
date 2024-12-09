@@ -71,6 +71,33 @@ class _LoginViewState extends State<LoginView> {
   }
 
   @override
+  void initState() {
+    super.initState();
+    
+    // Check for pre-filled email from signup
+    final arguments = Get.arguments;
+    if (arguments != null) {
+      if (arguments['pre_fill_email'] != null) {
+        controller.emailController.text = arguments['pre_fill_email'];
+      }
+      
+      // Show signup success message if applicable
+      if (arguments['signup_success'] == true) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          Get.snackbar(
+            'Signup Successful',
+            'Please log in to continue',
+            snackPosition: SnackPosition.BOTTOM,
+            backgroundColor: Colors.green,
+            colorText: Colors.white,
+            duration: const Duration(seconds: 4),
+          );
+        });
+      }
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
     return Scaffold(
       body: SafeArea(
@@ -79,7 +106,7 @@ class _LoginViewState extends State<LoginView> {
             padding:
                 const EdgeInsets.symmetric(horizontal: 24.0, vertical: 16.0),
             child: Form(
-              key: controller.formKey,
+              key: LoginController.loginFormKey,
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.start,
                 crossAxisAlignment: CrossAxisAlignment.center,

@@ -12,11 +12,10 @@ class AssetsConstants {
   static const String logoLight = '$_images/logo_light.png';
   static const String logoDark = '$_images/logo_dark.png';
   static const String placeholder = '$_images/placeholder.png';
-  static const String onboarding1 = '$_images/onboarding_1.png';
-  static const String onboarding2 = '$_images/onboarding_2.png';
-  static const String onboarding3 = '$_images/onboarding_3.png';
   static const String emptyState = '$_images/empty_state.png';
   static const String errorState = '$_images/error_state.png';
+
+  // Removed onboarding images
 
   // Icons
   static const String googleIcon = '$_icons/google.png';

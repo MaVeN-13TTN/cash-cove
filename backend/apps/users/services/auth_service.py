@@ -18,6 +18,7 @@ from django.core.exceptions import ValidationError
 from django_otp.oath import TOTP
 from django_otp.plugins.otp_totp.models import TOTPDevice
 from ..models import Profile, User
+from apps.utils import LoggerUtils  # Import LoggerUtils
 
 
 class AuthService:
@@ -44,19 +45,15 @@ class AuthService:
         Raises:
             ValidationError: If registration fails
         """
-        # Validate email domain if necessary
-        email = data["email"].lower()
-        if AuthService._is_disposable_email(email):
-            raise ValidationError(_("Disposable email addresses are not allowed."))
-
-        # Create user with transaction
-        user = User.objects.create_user(
-            email=email,
-            username=data.get("username", email),
-            password=data["password"],
+    # Create user with transaction
+        user = User(
+            email=data["email"],
+            username=data.get("username", data["email"]),
             first_name=data.get("first_name", ""),
             last_name=data.get("last_name", ""),
         )
+        user.set_password(data["password"])
+        user.save()
 
         # Initialize user preferences
         user.preferences = {
@@ -76,11 +73,12 @@ class AuthService:
             }
         )
 
-        # Send emails
-        AuthService.send_verification_email(user)
-
         # Setup OTP device
         AuthService.setup_otp_device(user)
+
+        # Mark user as verified
+        user.is_verified = True
+        user.save()
 
         return user, profile
 
@@ -90,24 +88,30 @@ class AuthService:
     ) -> Tuple[Optional[User], Optional[str]]:
         """Authentication handler."""
         if AuthService._is_account_locked(email):
+            LoggerUtils.info(f"Account locked for email: {email}")
             return None, _("Account temporarily locked. Try again later.")
 
         try:
             user = User.objects.get(email=email.lower())
+            LoggerUtils.info(f"User found: {user.email}")
 
             if not user.is_active:
+                LoggerUtils.info(f"Account deactivated for email: {email}")
                 return None, _("Account is deactivated.")
 
             if not user.check_password(password):
+                LoggerUtils.info(f"Invalid password for email: {email}")
                 AuthService._record_failed_attempt(email)
                 return None, _("Invalid credentials.")
 
+            LoggerUtils.info(f"Successful login for email: {email}")
             AuthService._clear_login_attempts(email)
             AuthService._update_login_metadata(user, ip_address)
 
             return user, None
 
         except User.DoesNotExist:
+            LoggerUtils.info(f"User does not exist for email: {email}")
             AuthService._record_failed_attempt(email)
             return None, _("Invalid credentials.")
 

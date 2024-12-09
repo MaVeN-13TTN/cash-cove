@@ -37,7 +37,7 @@ class DialogService {
     required BuildContext context,
     required DialogType type,
     required DialogConfig config,
-  }) {
+  }) async {
     final theme = Theme.of(context);
 
     IconData getIcon() {
@@ -68,9 +68,9 @@ class DialogService {
       }
     }
 
-    Widget buildTitle() {
+    Widget buildTitle(BuildContext context, String title) {
       if (type == DialogType.loading) {
-        return Text(config.title);
+        return Text(title);
       }
 
       return Row(
@@ -82,7 +82,7 @@ class DialogService {
           const SizedBox(width: 8),
           Expanded(
             child: Text(
-              config.title,
+              title,
               style: TextStyle(
                 color: type == DialogType.error ? theme.colorScheme.error : null,
               ),
@@ -92,7 +92,7 @@ class DialogService {
       );
     }
 
-    Widget buildContent() {
+    Widget buildContent(BuildContext context, DialogConfig config) {
       if (config.customContent != null) {
         return config.customContent!;
       }
@@ -113,7 +113,7 @@ class DialogService {
       return Text(config.message);
     }
 
-    List<Widget> buildActions() {
+    List<Widget> buildActions(BuildContext context, DialogConfig config) {
       if (type == DialogType.loading) {
         return [];
       }
@@ -142,17 +142,19 @@ class DialogService {
       ];
     }
 
-    return showDialog<T>(
+    return showDialog(
       context: context,
-      barrierDismissible: config.isDismissible && type != DialogType.loading,
-      builder: (context) => PopScope(
-        canPop: config.isDismissible && type != DialogType.loading,
-        child: AlertDialog(
-          title: buildTitle(),
-          content: buildContent(),
-          actions: buildActions(),
-        ),
-      ),
+      barrierDismissible: config.isDismissible,
+      builder: (BuildContext dialogContext) {
+        return AlertDialog(
+          title: buildTitle(context, config.title),
+          content: buildContent(context, config),
+          actions: buildActions(context, config),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
+        );
+      },
     );
   }
 
@@ -259,6 +261,40 @@ class DialogService {
         title: title,
         message: message,
         isDismissible: false,
+      ),
+    );
+  }
+
+  static Future<void> showLoadingDialog({
+    required BuildContext context,
+    required String title,
+    String message = '',
+    bool isDismissible = false,
+  }) async {
+    await showCustomDialog(
+      context: context,
+      type: DialogType.loading,
+      config: DialogConfig(
+        title: title,
+        message: message,
+        isDismissible: isDismissible,
+        customContent: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const CircularProgressIndicator(),
+            if (message.isNotEmpty) ...[
+              const SizedBox(height: 16),
+              Text(
+                message,
+                textAlign: TextAlign.center,
+                style: const TextStyle(
+                  color: Colors.grey,
+                  fontSize: 14,
+                ),
+              ),
+            ],
+          ],
+        ),
       ),
     );
   }

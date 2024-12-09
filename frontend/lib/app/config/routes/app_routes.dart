@@ -1,6 +1,5 @@
 abstract class AppRoutes {
   static const String splash = '/';
-  static const String onboarding = '/onboarding';
   
   // Auth Routes
   static const String login = '/login';
@@ -53,4 +52,6 @@ abstract class AppRoutes {
   static const String about = '/about';
   static const String privacyPolicy = '/privacy-policy';
   static const String termsOfService = '/terms-of-service';
+  
+  // Removed onboarding route
 }

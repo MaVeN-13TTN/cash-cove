@@ -9,15 +9,10 @@ class StorageConstants {
   static const String biometricEnabled = 'biometric_enabled';
 
   // Shared Preferences Keys
-  static const String hasSeenOnboarding = 'has_seen_onboarding';
   static const String theme = 'theme';
   static const String language = 'language';
   static const String currency = 'currency';
   static const String notifications = 'notifications';
-  static const String firstLaunch = 'first_launch';
-  static const String onboardingComplete = 'onboarding_complete';
-  static const String selectedTheme = 'selected_theme';
-  static const String selectedLanguage = 'selected_language';
   static const String notificationsEnabled = 'notifications_enabled';
   static const String lastSyncTimestamp = 'last_sync_timestamp';
   static const String deviceId = 'device_id';

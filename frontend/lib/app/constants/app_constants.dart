@@ -13,7 +13,7 @@ class AppConstants {
   static const String userDataKey = 'user_data';
   static const String themeKey = 'app_theme';
   static const String localeKey = 'app_locale';
-  static const String onboardingKey = 'onboarding_completed';
+  // Removed onboarding key
 
   // Timeouts
   static const int connectionTimeout = 30000; // 30 seconds

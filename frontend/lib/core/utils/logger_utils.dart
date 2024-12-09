@@ -1,4 +1,6 @@
 import 'dart:developer' as developer;
+import 'package:logging/logging.dart';
+import 'package:flutter/foundation.dart';
 
 enum LogLevel {
   debug,
@@ -10,6 +12,7 @@ enum LogLevel {
 class LoggerUtils {
   static bool _isDebugMode = true;
   static const String _tag = 'BudgetTracker';
+  static final Map<String, Logger> _loggers = {};
 
   static void setDebugMode(bool isDebug) {
     _isDebugMode = isDebug;
@@ -127,5 +130,45 @@ class LoggerUtils {
     }
 
     debug(buffer.toString());
+  }
+
+  static Logger getLogger(String name) {
+    if (!_loggers.containsKey(name)) {
+      _loggers[name] = Logger(name);
+      _setupLogger(_loggers[name]!);
+    }
+    return _loggers[name]!;
+  }
+
+  static void _setupLogger(Logger logger) {
+    if (kDebugMode) {
+      logger.onRecord.listen((record) {
+        print('${record.level.name}: ${record.time}: ${record.message}');
+        if (record.error != null) {
+          print('Error: ${record.error}');
+        }
+        if (record.stackTrace != null) {
+          print('Stack trace:\n${record.stackTrace}');
+        }
+      });
+    }
+  }
+
+  static void infoLogger(String message) {
+    getLogger('default').info(message);
+  }
+
+  static void warningLogger(String message) {
+    getLogger('default').warning(message);
+  }
+
+  static void errorLogger(String message, [Object? error, StackTrace? stackTrace]) {
+    getLogger('default').severe(message, error, stackTrace);
+  }
+
+  static void debugLogger(String message) {
+    if (kDebugMode) {
+      getLogger('default').fine(message);
+    }
   }
 }

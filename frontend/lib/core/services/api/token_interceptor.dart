@@ -65,8 +65,8 @@ class TokenInterceptor extends dio_client.Interceptor {
 
       if (response.statusCode == 200) {
         final tokens = response.data;
-        await StorageUtils.saveToken('access_token', tokens['access']);
-        await StorageUtils.saveToken('refresh_token', tokens['refresh']);
+        await StorageUtils.setAccessToken(tokens['access']);
+        await StorageUtils.setRefreshToken(tokens['refresh']);
         return tokens;
       }
     } catch (e) {

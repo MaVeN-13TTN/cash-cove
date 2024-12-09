@@ -3,17 +3,23 @@ import 'package:get/get.dart';
 import 'dart:async';
 import '../../../core/network/dio_client.dart';
 import 'auth_controller.dart';
+import '../../../app/config/routes/app_routes.dart';
+import '../../../core/services/error/error_service.dart';
+import '../../../core/utils/storage_utils.dart';
+import '../../../shared/widgets/dialogs/dialog_service.dart';
+import '../../../core/utils/logger_utils.dart';
 
 class SignupController extends GetxController {
-  final AuthController _authController = Get.find<AuthController>();
   final DioClient _dioClient = Get.find<DioClient>();
-  
+  final ErrorService _errorService = Get.find<ErrorService>();
+  final AuthController _authController = Get.find<AuthController>();
+
   final nameController = TextEditingController();
   final emailController = TextEditingController();
   final passwordController = TextEditingController();
   final confirmPasswordController = TextEditingController();
   final usernameController = TextEditingController();
-  final formKey = GlobalKey<FormState>();
+  static final formKey = GlobalKey<FormState>();
 
   final _obscurePassword = true.obs;
   final _obscureConfirmPassword = true.obs;
@@ -40,84 +46,74 @@ class SignupController extends GetxController {
   Color get passwordStrengthColor => _passwordStrengthColor.value;
   bool get isFormValid => _isFormValid.value;
   String get error => _error.value;
-  set error(String value) => _error.value = value;
 
-  bool get canSubmit {
-    return isFormValid && 
-           acceptedTerms && 
-           !isLoading &&
-           !isCheckingEmail &&
-           passwordStrength >= 2.0;
+  Timer? _emailCheckTimer;
+
+  @override
+  void onInit() {
+    super.onInit();
+    _setupControllers();
   }
 
-  void validateForm() {
-    _isFormValid.value = formKey.currentState?.validate() ?? false;
+  @override
+  void onClose() {
+    _emailCheckTimer?.cancel();
+    nameController.dispose();
+    emailController.dispose();
+    passwordController.dispose();
+    confirmPasswordController.dispose();
+    usernameController.dispose();
+    Get.delete<SignupController>();
+    super.onClose();
+  }
+
+  void _setupControllers() {
+    emailController.addListener(_validateForm);
+    passwordController.addListener(_onPasswordChanged);
+    confirmPasswordController.addListener(_validateForm);
   }
 
   void togglePasswordVisibility() => _obscurePassword.toggle();
   void toggleConfirmPasswordVisibility() => _obscureConfirmPassword.toggle();
-  void toggleTermsAcceptance() => _acceptedTerms.toggle();
+  void toggleTerms(bool? value) => _acceptedTerms.value = value ?? false;
 
-  void updatePasswordStrength(String password) {
+  void _onPasswordChanged() {
+    if (passwordController.text.isEmpty) {
+      _passwordStrength.value = 0;
+      _passwordStrengthText.value = '';
+      _passwordStrengthColor.value = const Color(0xFF9E9E9E);
+      return;
+    }
+
+    final password = passwordController.text;
     double strength = 0;
-    
-    if (password.length >= 8) strength++;
-    if (password.contains(RegExp(r'[A-Z]'))) strength++;
-    if (password.contains(RegExp(r'[0-9]'))) strength++;
-    if (password.contains(RegExp(r'[!@#$%^&*(),.?":{}|<>]'))) strength++;
+    String text = '';
+    Color color = Colors.red;
+
+    if (password.length >= 8) strength += 0.5;
+    if (password.contains(RegExp(r'[0-9]'))) strength += 0.5;
+    if (password.contains(RegExp(r'[A-Z]'))) strength += 0.5;
+    if (password.contains(RegExp(r'[a-z]'))) strength += 0.5;
+    if (password.contains(RegExp(r'[!@#$%^&*(),.?":{}|<>]'))) strength += 1;
+
+    if (strength <= 1) {
+      text = 'Weak';
+      color = Colors.red;
+    } else if (strength <= 2) {
+      text = 'Medium';
+      color = Colors.orange;
+    } else {
+      text = 'Strong';
+      color = Colors.green;
+    }
 
     _passwordStrength.value = strength;
-
-    switch (strength) {
-      case 0:
-        _passwordStrengthText.value = 'Very Weak';
-        _passwordStrengthColor.value = const Color(0xFFD32F2F);
-        break;
-      case 1:
-        _passwordStrengthText.value = 'Weak';
-        _passwordStrengthColor.value = const Color(0xFFF57C00);
-        break;
-      case 2:
-        _passwordStrengthText.value = 'Medium';
-        _passwordStrengthColor.value = const Color(0xFFFFA000);
-        break;
-      case 3:
-        _passwordStrengthText.value = 'Strong';
-        _passwordStrengthColor.value = const Color(0xFF388E3C);
-        break;
-      case 4:
-        _passwordStrengthText.value = 'Very Strong';
-        _passwordStrengthColor.value = const Color(0xFF2E7D32);
-        break;
-    }
+    _passwordStrengthText.value = text;
+    _passwordStrengthColor.value = color;
+    _validateForm();
   }
 
-  Future<bool> checkEmailAvailability(String email) async {
-    try {
-      _isCheckingEmail.value = true;
-      _emailError.value = '';
-      
-      final response = await _dioClient.dio.get('/auth/check-email/', queryParameters: {
-        'email': email,
-      });
-
-      final available = response.data['available'] ?? false;
-      _isEmailAvailable.value = !available;
-      
-      if (available) {
-        _emailError.value = 'Email is already in use';
-        return false;
-      }
-      return true;
-    } catch (e) {
-      _emailError.value = 'Error checking email availability';
-      _isEmailAvailable.value = false;
-      return false;
-    } finally {
-      _isCheckingEmail.value = false;
-    }
-  }
-
+  // Form Validation Methods
   String? validateName(String? value) {
     if (value == null || value.isEmpty) {
       return 'Name is required';
@@ -128,12 +124,28 @@ class SignupController extends GetxController {
     return null;
   }
 
+  String? validateUsername(String? value) {
+    if (value == null || value.isEmpty) {
+      return 'Username is required';
+    }
+    if (value.length < 3) {
+      return 'Username must be at least 3 characters';
+    }
+    if (!RegExp(r'^[a-zA-Z0-9_]+$').hasMatch(value)) {
+      return 'Username can only contain letters, numbers, and underscores';
+    }
+    return null;
+  }
+
   String? validateEmail(String? value) {
     if (value == null || value.isEmpty) {
       return 'Email is required';
     }
     if (!GetUtils.isEmail(value)) {
       return 'Please enter a valid email';
+    }
+    if (!_isEmailAvailable.value) {
+      return 'This email is already in use';
     }
     return null;
   }
@@ -147,6 +159,9 @@ class SignupController extends GetxController {
     }
     if (!value.contains(RegExp(r'[A-Z]'))) {
       return 'Password must contain at least one uppercase letter';
+    }
+    if (!value.contains(RegExp(r'[a-z]'))) {
+      return 'Password must contain at least one lowercase letter';
     }
     if (!value.contains(RegExp(r'[0-9]'))) {
       return 'Password must contain at least one number';
@@ -167,26 +182,23 @@ class SignupController extends GetxController {
     return null;
   }
 
-  String? validateUsername(String? value) {
-    if (value == null || value.isEmpty) {
-      return 'Username is required';
-    }
-    if (value.length < 3) {
-      return 'Username must be at least 3 characters';
-    }
-    return null;
+  void updatePasswordStrength(String value) {
+    _onPasswordChanged();
+  }
+
+  void toggleTermsAcceptance() {
+    _acceptedTerms.toggle();
+    _validateForm();
   }
 
   void showTermsAndConditions() {
     Get.dialog(
       AlertDialog(
         title: const Text('Terms and Conditions'),
-        content: const SingleChildScrollView(
+        content: SingleChildScrollView(
           child: Text(
-            'By creating an account, you agree to our Terms of Service and Privacy Policy. '
-            'We are committed to protecting your personal information and ensuring a secure experience. '
-            'You must be at least 13 years old to use this service. '
-            'You agree to provide accurate information and maintain the security of your account.'
+            'By accepting these terms, you agree to our Privacy Policy and Terms of Service...',
+            style: Get.textTheme.bodyMedium,
           ),
         ),
         actions: [
@@ -199,52 +211,125 @@ class SignupController extends GetxController {
     );
   }
 
+  bool get canSubmit {
+    return isFormValid && 
+           acceptedTerms && 
+           !isLoading && 
+           !isCheckingEmail && 
+           passwordStrength >= 2.0;
+  }
+
+  void _validateForm() {
+    _isFormValid.value = SignupController.formKey.currentState?.validate() ?? false;
+  }
+
   Future<void> signup() async {
+    _validateForm();
+    if (!_isFormValid.value) return;
+
+    // Trigger email check before proceeding
+    await _checkEmailAvailability();
+
+    if (!_isEmailAvailable.value) {
+      _error.value = 'Email is not available';
+      return;
+    }
+
+    _isLoading.value = true;
+    _error.value = '';
+
     try {
-      await _authController.signup(
-        nameController.text.trim(),
-        emailController.text.trim(),
-        passwordController.text,
-        confirmPasswordController.text,
-        usernameController.text.trim(),
-        acceptedTerms,
-      );
-      _error.value = '';
+      final response = await _dioClient.post('/auth/register/', data: {
+        'name': nameController.text.trim(),
+        'email': emailController.text.trim(),
+        'password': passwordController.text,
+        'confirm_password': confirmPasswordController.text,
+        'username': usernameController.text.trim(),
+        'terms_accepted': _acceptedTerms.value,
+      });
+
+      if (response.statusCode == 201) {
+        await _handleSuccessfulSignup(response.data);
+      } else {
+        throw 'Invalid response from server';
+      }
     } catch (e) {
-      _error.value = e.toString();
-      rethrow;
+      LoggerUtils.error('Signup error', e);
+      _errorService.handleError(e);
+    } finally {
+      _isLoading.value = false;
     }
   }
 
-  @override
-  void onInit() {
-    super.onInit();
-    // Add listeners to validate form when text changes
-    nameController.addListener(validateForm);
-    emailController.addListener(validateForm);
-    passwordController.addListener(() {
-      updatePasswordStrength(passwordController.text);
-      validateForm();
-    });
-    confirmPasswordController.addListener(validateForm);
-    usernameController.addListener(validateForm);
+  Future<void> _checkEmailAvailability() async {
+    if (emailController.text.isEmpty || !GetUtils.isEmail(emailController.text)) {
+      _emailError.value = 'Invalid email format';
+      _isEmailAvailable.value = false;
+      return;
+    }
+
+    try {
+      _isCheckingEmail.value = true;
+      _emailError.value = '';
+
+      final response = await _dioClient.get('/auth/check-email/',
+          queryParameters: {'email': emailController.text.trim()});
+
+      _isEmailAvailable.value = response.data['is_available'];
+    } catch (e) {
+      LoggerUtils.error('Email check error', e);
+      _isEmailAvailable.value = false;
+    } finally {
+      _isCheckingEmail.value = false;
+    }
   }
 
-  @override
-  void onClose() {
-    nameController.removeListener(validateForm);
-    emailController.removeListener(validateForm);
-    passwordController.removeListener(() {
-      updatePasswordStrength(passwordController.text);
-      validateForm();
-    });
-    confirmPasswordController.removeListener(validateForm);
-    usernameController.removeListener(validateForm);
-    nameController.dispose();
-    emailController.dispose();
-    passwordController.dispose();
-    confirmPasswordController.dispose();
-    usernameController.dispose();
-    super.onClose();
+  Future<void> _handleSuccessfulSignup(Map<String, dynamic> data) async {
+    // Handle successful signup logic
+    LoggerUtils.info('Starting signup process for: ${emailController.text}');
+
+    await DialogService.showLoading(
+      context: Get.context!,
+      title: 'Creating Account',
+      message: 'Please wait while we set up your account...',
+    );
+
+    if (data['requires_verification'] == true) {
+      // Store email for login view
+      await StorageUtils.setTemporaryEmail(emailController.text);
+      
+      // Update auth state to reflect new registration
+      await _authController.updateRegistrationState(
+        email: emailController.text,
+        requiresVerification: data['requires_verification'] ?? false,
+      );
+
+      await DialogService.showSuccess(
+        context: Get.context!,
+        title: 'Success',
+        message: 'Account created! Please check your email to verify your account.',
+      );
+
+      // Navigate based on verification requirement
+      Get.offNamed(AppRoutes.verifyEmail);
+    } else {
+      // Store email for login view
+      await StorageUtils.setTemporaryEmail(emailController.text);
+      
+      // Update auth state to reflect new registration
+      await _authController.updateRegistrationState(
+        email: emailController.text,
+        requiresVerification: data['requires_verification'] ?? false,
+      );
+
+      await DialogService.showSuccess(
+        context: Get.context!,
+        title: 'Success',
+        message: 'Account created successfully! Please log in.',
+      );
+
+      // Navigate based on verification requirement
+      Get.offNamed(AppRoutes.login);
+    }
   }
 }
