@@ -5,7 +5,10 @@ Models for the notifications application.
 from django.db import models
 from django.conf import settings
 from django.utils.translation import gettext_lazy as _
+from django.contrib.auth import get_user_model
+from django.core.exceptions import ValidationError
 
+User = get_user_model()
 
 class Notification(models.Model):
     """
@@ -124,74 +127,62 @@ class Notification(models.Model):
 
 
 class NotificationPreference(models.Model):
-    """
-    Model for user notification preferences.
-    """
+    """User notification preferences."""
 
     user = models.OneToOneField(
-        settings.AUTH_USER_MODEL,
+        User,
         on_delete=models.CASCADE,
-        related_name="notification_preferences",
-        verbose_name=_("User"),
+        related_name='notification_preferences'
     )
-    email_notifications = models.BooleanField(_("Email Notifications"), default=True)
-    push_notifications = models.BooleanField(_("Push Notifications"), default=True)
-    notification_types = models.JSONField(
-        _("Enabled Notification Types"),
-        default=list,
-        help_text=_("List of enabled notification types"),
-    )
-    quiet_hours_start = models.TimeField(_("Quiet Hours Start"), null=True, blank=True)
-    quiet_hours_end = models.TimeField(_("Quiet Hours End"), null=True, blank=True)
-    minimum_priority = models.CharField(
-        _("Minimum Priority"),
+    
+    # Individual notification type toggles
+    budget_alerts = models.BooleanField(default=True)
+    expense_alerts = models.BooleanField(default=True)
+    system_notifications = models.BooleanField(default=True)
+    reminders = models.BooleanField(default=True)
+    budget_exceeded_alerts = models.BooleanField(default=True)
+    recurring_expense_alerts = models.BooleanField(default=True)
+    threshold_alerts = models.BooleanField(default=True)
+    
+    # Delivery preferences
+    email_notifications = models.BooleanField(default=True)
+    push_notifications = models.BooleanField(default=True)
+    
+    # Frequency settings
+    FREQUENCY_CHOICES = [
+        ('immediate', 'Immediate'),
+        ('daily', 'Daily Digest'),
+        ('weekly', 'Weekly Digest'),
+    ]
+    notification_frequency = models.CharField(
         max_length=20,
-        choices=Notification.Priority.choices,
-        default=Notification.Priority.LOW,
+        choices=FREQUENCY_CHOICES,
+        default='immediate'
     )
-    created_at = models.DateTimeField(_("Created At"), auto_now_add=True)
-    updated_at = models.DateTimeField(_("Updated At"), auto_now=True)
-
+    
+    # Quiet hours
+    quiet_hours_start = models.TimeField(null=True, blank=True)
+    quiet_hours_end = models.TimeField(null=True, blank=True)
+    
+    # Timestamps
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    
     class Meta:
-        """
-        Meta options for NotificationPreference model.
-        """
-
-        verbose_name = _("Notification Preference")
-        verbose_name_plural = _("Notification Preferences")
-
-    def __str__(self) -> str:
-        """String representation of the notification preferences."""
-        return f"Notification Preferences for {self.user.username}"
-
-    def can_notify(self, notification_type: str, priority: str) -> bool:
-        """
-        Check if a notification can be sent based on preferences.
-
-        Args:
-            notification_type: Type of notification
-            priority: Priority level of notification
-
-        Returns:
-            bool: Whether notification can be sent
-        """
-        from django.utils import timezone
-
-        # Check if notification type is enabled
-        if notification_type not in self.notification_types:
-            return False
-
-        # Check priority level
-        priority_levels = dict(Notification.Priority.choices)
-        if list(priority_levels.keys()).index(priority) < list(
-            priority_levels.keys()
-        ).index(self.minimum_priority):
-            return False
-
-        # Check quiet hours
-        if self.quiet_hours_start and self.quiet_hours_end:
-            current_time = timezone.localtime().time()
-            if self.quiet_hours_start <= current_time <= self.quiet_hours_end:
-                return priority == Notification.Priority.URGENT
-
-        return True
+        verbose_name = 'Notification Preference'
+        verbose_name_plural = 'Notification Preferences'
+    
+    def clean(self):
+        """Validate notification preferences."""
+        if self.quiet_hours_start and not self.quiet_hours_end:
+            raise ValidationError(_('Both quiet hours start and end must be set.'))
+        if self.quiet_hours_end and not self.quiet_hours_start:
+            raise ValidationError(_('Both quiet hours start and end must be set.'))
+    
+    def save(self, *args, **kwargs):
+        """Override save to run full_clean."""
+        self.full_clean()
+        super().save(*args, **kwargs)
+    
+    def __str__(self):
+        return f'Notification preferences for {self.user}'

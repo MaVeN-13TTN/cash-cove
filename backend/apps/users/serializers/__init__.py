@@ -10,6 +10,5 @@ from .users_serializer import (  # noqa: F401
     TokenSerializer,
     PasswordResetSerializer,
     PasswordResetConfirmSerializer,
-    EmailVerificationSerializer,
 )
 from .profile_serializer import ProfileSerializer  # noqa: F401

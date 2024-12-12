@@ -2,6 +2,9 @@ from typing import Dict, Any, TypeVar, Type, TYPE_CHECKING
 from django.contrib.auth import get_user_model, password_validation
 from rest_framework import serializers
 from django.utils.translation import gettext_lazy as _
+from django.core.validators import validate_email, ValidationError
+from django.db import transaction
+from django.core.exceptions import ObjectDoesNotExist
 from ..models import Profile
 
 BaseUser = get_user_model()
@@ -40,7 +43,6 @@ class UserSerializer(serializers.ModelSerializer[UserType]):
             "is_verified",
             "date_joined",
             "last_login",
-            "preferences",
             "profile",
             "total_expenses",
             "total_budgets",
@@ -70,12 +72,25 @@ class UserSerializer(serializers.ModelSerializer[UserType]):
 
         Returns:
             str: Validated email
-
-        Raises:
-            serializers.ValidationError: If email is invalid or already in use
         """
+        # Remove email verification logic
+        # Validate email format
+        if not value:
+            raise serializers.ValidationError(_("Email is required."))
+        
+        # Basic email format validation
+        try:
+            validate_email(value)
+        except ValidationError:
+            raise serializers.ValidationError(_("Invalid email format."))
+        
+        # Convert to lowercase
+        value = value.lower()
+        
+        # Check for existing email (optional, depending on your requirements)
         if BaseUser.objects.filter(email=value).exists():
             raise serializers.ValidationError(_("This email is already in use."))
+        
         return value
 
     def validate_phone_number(self, value: str) -> str:
@@ -113,6 +128,8 @@ class UserCreateSerializer(UserSerializer):
         write_only=True, required=True, style={"input_type": "password"}
     )
     terms_accepted = serializers.BooleanField(required=True)
+    first_name = serializers.CharField(required=True)
+    last_name = serializers.CharField(required=True)
 
     class Meta(UserSerializer.Meta):
         """Meta options for UserCreateSerializer."""
@@ -121,6 +138,8 @@ class UserCreateSerializer(UserSerializer):
             "password",
             "confirm_password",
             "terms_accepted",
+            "first_name",
+            "last_name",
         ]
 
     def validate_password(self, value: str) -> str:
@@ -129,20 +148,78 @@ class UserCreateSerializer(UserSerializer):
         return value
 
     def validate(self, attrs: Dict[str, Any]) -> Dict[str, Any]:
-        """Validate data."""
-        if attrs.get("password") != attrs.get("confirm_password"):
-            raise serializers.ValidationError(
-                {"password": _("Password fields didn't match.")}
-            )
+        """
+        Validate data.
 
-        if not attrs.get("terms_accepted"):
-            raise serializers.ValidationError(
-                {"terms_accepted": _("You must accept the terms and conditions.")}
-            )
+        Args:
+            attrs: Data to validate
 
-        attrs.pop("confirm_password", None)
-        attrs.pop("terms_accepted", None)
+        Returns:
+            Dict[str, Any]: Validated data
+
+        Raises:
+            serializers.ValidationError: If validation fails
+        """
+        # Log incoming data for debugging
+        import logging
+        logger = logging.getLogger(__name__)
+        logger.debug('Validating data: %s', attrs)
+
+        # Check password match
+        if attrs['password'] != attrs['confirm_password']:
+            raise serializers.ValidationError(_('Passwords do not match.'))
+
+        # Perform additional validations here if needed
+
+        if not attrs["terms_accepted"]:
+            raise serializers.ValidationError(_("You must accept the terms and conditions."))
+
         return attrs
+
+    def create(self, validated_data: Dict[str, Any]) -> BaseUser:
+        """
+        Create a new user with the validated data.
+        
+        Args:
+            validated_data (dict): Validated data from the serializer
+            
+        Returns:
+            User: Newly created user
+        """
+        with transaction.atomic():
+            # Remove non-user fields
+            profile_data = {}
+            for field in ['terms_accepted', 'confirm_password']:
+                if field in validated_data:
+                    profile_data[field] = validated_data.pop(field)
+
+            # Extract password before user creation
+            password = validated_data.pop('password')
+
+            # Create base user first
+            user = BaseUser(
+                email=validated_data['email'],
+                username=validated_data.get('username', ''),
+                first_name=validated_data.get('first_name', ''),
+                last_name=validated_data.get('last_name', ''),
+                is_active=True,
+                is_verified=True  # Auto verify for now
+            )
+            
+            # Set password properly
+            user.set_password(password)
+            user.save()
+
+            # Create or get profile
+            try:
+                profile = Profile.objects.get(user=user)
+            except ObjectDoesNotExist:
+                profile = Profile.objects.create(
+                    user=user,
+                    terms_accepted=profile_data.get('terms_accepted', False)
+                )
+
+            return user
 
 
 class UserUpdateSerializer(UserSerializer):
@@ -179,18 +256,32 @@ class LoginSerializer(serializers.Serializer):
 
     def validate(self, attrs: Dict[str, Any]) -> Dict[str, Any]:
         """Validate login credentials."""
+        import logging
+        logger = logging.getLogger(__name__)
+
         email = attrs.get("email", "").lower()
         password = attrs.get("password", "")
 
+        logger.info(f"Login attempt for email: {email}")
+
         if not email or not password:
+            logger.warning("Login attempt with missing email or password")
             raise serializers.ValidationError(_("Please provide both email and password."))
 
         user = BaseUser.objects.filter(email=email).first()
 
-        if not user or not user.check_password(password):
+        if not user:
+            logger.warning(f"No user found with email: {email}")
+            raise serializers.ValidationError(_("Invalid email or password."))
+
+        logger.info(f"User found: {user.username}, Checking password")
+        
+        if not user.check_password(password):
+            logger.warning(f"Password check failed for user: {user.username}")
             raise serializers.ValidationError(_("Invalid email or password."))
 
         if not user.is_active:
+            logger.warning(f"Inactive user login attempt: {user.username}")
             raise serializers.ValidationError(_("This account is inactive."))
 
         attrs["user"] = user
@@ -248,15 +339,3 @@ class PasswordResetConfirmSerializer(serializers.Serializer):
                 {"password": _("Password fields didn't match.")}
             )
         return attrs
-
-
-class EmailVerificationSerializer(serializers.Serializer):
-    """Serializer for email verification."""
-
-    token = serializers.CharField(required=True)
-
-    def validate_token(self, value: str) -> str:
-        """Validate token."""
-        if not value:
-            raise serializers.ValidationError(_("Invalid verification token."))
-        return value

@@ -2,7 +2,7 @@
 API views for the users application.
 """
 
-from rest_framework import viewsets, status, generics
+from rest_framework import viewsets, status, generics, mixins
 from rest_framework.decorators import action
 from rest_framework.permissions import IsAuthenticated, AllowAny
 from rest_framework.response import Response
@@ -10,6 +10,14 @@ from rest_framework.request import Request
 from django.contrib.auth import get_user_model
 from django.utils.translation import gettext_lazy as _
 from django.utils import timezone
+import logging
+import rest_framework.serializers as serializers
+from django.db import transaction
+from django.core.mail import send_mail
+from django.contrib.auth.tokens import default_token_generator
+from django.utils.http import urlsafe_base64_encode, urlsafe_base64_decode
+from django.utils.encoding import force_bytes, force_str
+from django.conf import settings
 
 from ..serializers.users_serializer import (
     UserSerializer,
@@ -19,7 +27,6 @@ from ..serializers.users_serializer import (
     TokenSerializer,
     PasswordResetSerializer,
     PasswordResetConfirmSerializer,
-    EmailVerificationSerializer,
 )
 from ..serializers.profile_serializer import ProfileSerializer
 from ..services.auth_service import AuthService
@@ -30,6 +37,7 @@ from rest_framework_simplejwt.tokens import RefreshToken
 
 User = get_user_model()
 
+logger = logging.getLogger(__name__)
 
 class UserViewSet(viewsets.ModelViewSet):
     """
@@ -84,17 +92,29 @@ class UserViewSet(viewsets.ModelViewSet):
 
     @action(detail=False, methods=["post"])
     def register(self, request: Request) -> Response:
-        """Register new user."""
+        """
+        Handle user registration.
+
+        Creates a new user and returns user details and token.
+        """
         serializer = UserCreateSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-
-        user, _ = AuthService.register_user(serializer.validated_data)
-        tokens = AuthService.get_tokens_for_user(user)
-
-        return Response(
-            {"user": UserSerializer(user).data, "tokens": tokens},
-            status=status.HTTP_201_CREATED,
-        )
+        
+        # Create user
+        user = serializer.save()
+        
+        # Automatically mark user as verified
+        user.is_verified = True
+        user.save(update_fields=['is_verified'])
+        
+        # Generate tokens
+        refresh = RefreshToken.for_user(user)
+        
+        return Response({
+            'refresh': str(refresh),
+            'access': str(refresh.access_token),
+            'user': UserSerializer(user).data
+        }, status=status.HTTP_201_CREATED)
 
     @action(detail=False, methods=["post"])
     def reset_password(self, request: Request) -> Response:
@@ -134,7 +154,7 @@ class UserViewSet(viewsets.ModelViewSet):
     @action(detail=False, methods=["post"])
     def verify_email(self, request: Request) -> Response:
         """Verify email address."""
-        serializer = EmailVerificationSerializer(data=request.data)
+        serializer = serializers.Serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
 
         uid = request.query_params.get("uid")
@@ -165,7 +185,7 @@ class UserViewSet(viewsets.ModelViewSet):
             )
 
         exists = User.objects.filter(email=email).exists()
-        return Response({"available": exists})
+        return Response({"available": not exists})
 
     @action(detail=False, methods=["get"])
     def profile(self, request: Request) -> Response:
@@ -237,29 +257,47 @@ class UserViewSet(viewsets.ModelViewSet):
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
-class ProfileViewSet(viewsets.ModelViewSet):
+class ProfileViewSet(viewsets.GenericViewSet,
+                    mixins.RetrieveModelMixin,
+                    mixins.UpdateModelMixin):
     """
     ViewSet for managing user profiles.
     """
 
     serializer_class = ProfileSerializer
     permission_classes = [IsAuthenticated]
-
-    def get_queryset(self):
-        """Get queryset for profiles."""
-        if self.request.user.is_staff:
-            return Profile.objects.all()
-        return Profile.objects.filter(user=self.request.user)
+    http_method_names = ['get', 'put', 'patch']
 
     def get_object(self):
         """Get or create profile for current user."""
-        return ProfileService.get_or_create_profile(self.request.user)
+        profile, _ = Profile.objects.get_or_create(user=self.request.user)
+        return profile
 
-    @action(detail=True, methods=["post"])
+    def retrieve(self, request, *args, **kwargs):
+        """Get user profile."""
+        instance = self.get_object()
+        serializer = self.get_serializer(instance)
+        return Response(serializer.data)
+
+    def update(self, request, *args, **kwargs):
+        """Update user profile."""
+        partial = kwargs.pop('partial', False)
+        instance = self.get_object()
+        serializer = self.get_serializer(instance, data=request.data, partial=partial)
+        serializer.is_valid(raise_exception=True)
+        self.perform_update(serializer)
+        return Response(serializer.data)
+
+    def partial_update(self, request, *args, **kwargs):
+        """Partially update user profile."""
+        kwargs['partial'] = True
+        return self.update(request, *args, **kwargs)
+
+    @action(detail=False, methods=["post"])
     def toggle_2fa(self, request: Request) -> Response:
         """Toggle two-factor authentication."""
         profile = self.get_object()
-        new_status = ProfileService.toggle_two_factor(profile)
+        new_status = profile.toggle_two_factor()
 
         return Response(
             {
@@ -287,9 +325,8 @@ class SecurityStatusViewSet(viewsets.ViewSet):
 
 
 class RegisterView(generics.CreateAPIView):
-    """
-    View for user registration.
-    """
+    """View for user registration."""
+
     serializer_class = UserCreateSerializer
     permission_classes = [AllowAny]
 
@@ -301,45 +338,37 @@ class RegisterView(generics.CreateAPIView):
         """
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        user = serializer.save()
-        
-        # Generate tokens for the new user
-        token_serializer = TokenSerializer(data={'user': user})
-        token_serializer.is_valid(raise_exception=True)
-        
-        return Response({
-            'user': UserSerializer(user).data,
-            'tokens': token_serializer.validated_data
-        }, status=status.HTTP_201_CREATED)
 
+        try:
+            with transaction.atomic():
+                # Create user and profile
+                user = serializer.save()
 
-class VerifyEmailView(generics.GenericAPIView):
-    """
-    View for email verification.
-    """
-    serializer_class = EmailVerificationSerializer
-    permission_classes = [AllowAny]
+                # Generate tokens
+                refresh = RefreshToken.for_user(user)
+                tokens = {
+                    "refresh": str(refresh),
+                    "access": str(refresh.access_token),
+                }
 
-    def post(self, request: Request) -> Response:
-        """
-        Verify user's email using provided token.
-        """
-        serializer = self.get_serializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
-        
-        # Verify email and activate user
-        user = serializer.save()
-        
-        return Response({
-            'detail': _('Email verified successfully.'),
-            'user': UserSerializer(user).data
-        }, status=status.HTTP_200_OK)
+                # Return response
+                response_data = {
+                    "user": UserSerializer(user).data,
+                    "tokens": tokens,
+                    "message": _("Registration successful"),
+                }
+                return Response(response_data, status=status.HTTP_201_CREATED)
+                
+        except Exception as e:
+            return Response(
+                {"error": str(e), "message": _("Registration failed. Please try again.")},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
 
 
 class ResetPasswordView(generics.GenericAPIView):
-    """
-    View for initiating password reset.
-    """
+    """View for initiating password reset."""
+
     serializer_class = PasswordResetSerializer
     permission_classes = [AllowAny]
 
@@ -352,18 +381,48 @@ class ResetPasswordView(generics.GenericAPIView):
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         
-        # Send password reset instructions
-        serializer.save()
+        email = serializer.validated_data["email"]
         
-        return Response({
-            'detail': _('Password reset instructions sent to your email.')
-        }, status=status.HTTP_200_OK)
+        try:
+            user = User.objects.get(email=email)
+            if not user.is_active:
+                return Response(
+                    {"error": _("Account is deactivated")},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+                
+            # Generate password reset token
+            token = default_token_generator.make_token(user)
+            uid = urlsafe_base64_encode(force_bytes(user.pk))
+            
+            # Send password reset email
+            reset_url = f"{settings.FRONTEND_URL}/reset-password?token={token}&uid={uid}"
+            send_mail(
+                subject=_("Password Reset Request"),
+                message=_(
+                    f"Click the following link to reset your password: {reset_url}\n"
+                    "If you did not request this reset, please ignore this email."
+                ),
+                from_email=settings.DEFAULT_FROM_EMAIL,
+                recipient_list=[email],
+            )
+            
+            return Response(
+                {"message": _("Password reset instructions sent to your email")},
+                status=status.HTTP_200_OK,
+            )
+            
+        except User.DoesNotExist:
+            # Return success even if email doesn't exist for security
+            return Response(
+                {"message": _("Password reset instructions sent to your email")},
+                status=status.HTTP_200_OK,
+            )
 
 
 class ResetPasswordConfirmView(generics.GenericAPIView):
-    """
-    View for confirming password reset.
-    """
+    """View for confirming password reset."""
+
     serializer_class = PasswordResetConfirmSerializer
     permission_classes = [AllowAny]
 
@@ -374,12 +433,36 @@ class ResetPasswordConfirmView(generics.GenericAPIView):
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         
-        # Reset password
-        serializer.save()
+        token = serializer.validated_data["token"]
+        password = serializer.validated_data["password"]
+        uid = request.data.get("uid")
         
-        return Response({
-            'detail': _('Password reset successful.')
-        }, status=status.HTTP_200_OK)
+        try:
+            # Decode user ID and get user
+            user_id = force_str(urlsafe_base64_decode(uid))
+            user = User.objects.get(pk=user_id)
+            
+            # Verify token
+            if not default_token_generator.check_token(user, token):
+                return Response(
+                    {"error": _("Invalid or expired reset token")},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+                
+            # Set new password
+            user.set_password(password)
+            user.save()
+            
+            return Response(
+                {"message": _("Password reset successful")},
+                status=status.HTTP_200_OK,
+            )
+            
+        except (TypeError, ValueError, OverflowError, User.DoesNotExist):
+            return Response(
+                {"error": _("Invalid reset link")},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
 
 
 class CustomTokenObtainPairView(generics.GenericAPIView):
@@ -395,20 +478,31 @@ class CustomTokenObtainPairView(generics.GenericAPIView):
         
         Validates credentials and generates JWT tokens.
         """
-        serializer = self.get_serializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
+        logger.info(f"Token request received with data: {request.data}")
         
-        user = serializer.validated_data['user']
-        
-        # Generate tokens
-        refresh = RefreshToken.for_user(user)
-        
-        # Update last login
-        user.last_login = timezone.now()
-        user.save(update_fields=['last_login'])
-        
-        return Response({
-            'refresh': str(refresh),
-            'access': str(refresh.access_token),
-            'user': UserSerializer(user).data
-        }, status=status.HTTP_200_OK)
+        try:
+            serializer = self.get_serializer(data=request.data)
+            serializer.is_valid(raise_exception=True)
+            
+            user = serializer.validated_data['user']
+            
+            # Generate tokens
+            refresh = RefreshToken.for_user(user)
+            
+            # Update last login
+            user.last_login = timezone.now()
+            user.save(update_fields=['last_login'])
+            
+            return Response({
+                'refresh': str(refresh),
+                'access': str(refresh.access_token),
+                'user': UserSerializer(user).data
+            }, status=status.HTTP_200_OK)
+        except serializers.ValidationError as e:
+            # Log validation errors
+            logger.error(f"Login validation error: {e}")
+            raise
+        except Exception as e:
+            # Log unexpected errors
+            logger.error(f"Unexpected error during login: {e}")
+            raise

@@ -7,8 +7,8 @@ from rest_framework.routers import DefaultRouter
 from .views import ExpenseViewSet
 
 router = DefaultRouter()
-router.register(r"expenses", ExpenseViewSet, basename="expense")
+router.register(r"", ExpenseViewSet, basename="expense")
 
 urlpatterns = [
-    path("api/v1/", include(router.urls)),
+    path("", include(router.urls)),
 ]

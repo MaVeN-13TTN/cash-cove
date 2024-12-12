@@ -109,23 +109,21 @@ class NotificationPreferenceViewSet(viewsets.ModelViewSet):
     """
     ViewSet for managing notification preferences.
     """
-
     serializer_class = NotificationPreferenceSerializer
     permission_classes = [IsAuthenticated]
-
+    
     def get_queryset(self):
-        """Get queryset filtered by user."""
+        """Get the queryset for notification preferences."""
         return NotificationPreference.objects.filter(user=self.request.user)
-
+    
     def get_object(self):
-        """Get or create preferences for current user."""
-        try:
-            return self.get_queryset().get()
-        except NotificationPreference.DoesNotExist:
-            return NotificationPreference.objects.create(user=self.request.user)
-
-    def perform_create(self, serializer):
-        """Create preferences for current user."""
+        """Get the notification preferences object for the current user."""
+        queryset = self.get_queryset()
+        obj, created = NotificationPreference.objects.get_or_create(user=self.request.user)
+        return obj
+    
+    def perform_update(self, serializer):
+        """Update notification preferences."""
         serializer.save(user=self.request.user)
 
     @action(detail=False, methods=["post"])

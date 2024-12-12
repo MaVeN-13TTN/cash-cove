@@ -115,32 +115,6 @@ class BudgetService:
                 NotificationService.send_budget_threshold_notification(budget)
 
     @staticmethod
-    def copy_budget(budget: Budget, start_date: date) -> Budget:
-        """
-        Create a copy of a budget with new dates.
-
-        Args:
-            budget: Budget to copy
-            start_date: New start date
-
-        Returns:
-            Budget: New budget instance
-        """
-        duration = (budget.end_date - budget.start_date).days
-        new_budget = Budget.objects.create(
-            user=budget.user,
-            name=f"{budget.name} (Copy)",
-            amount=budget.amount,
-            category=budget.category,
-            start_date=start_date,
-            end_date=start_date + timedelta(days=duration),
-            recurrence=budget.recurrence,
-            notification_threshold=budget.notification_threshold,
-            description=budget.description,
-        )
-        return new_budget
-
-    @staticmethod
     def get_category_budgets(
         user_id: int,
         category: str,

@@ -55,15 +55,27 @@ class NotificationCreateSerializer(NotificationSerializer):
         """Validate notification data."""
         user = data["user"]
         notification_type = data["notification_type"]
-        priority = data.get("priority", Notification.Priority.MEDIUM)
-
+        
         # Check user's notification preferences
         try:
             preferences = user.notification_preferences
-            if not preferences.can_notify(notification_type, priority):
-                raise serializers.ValidationError(
-                    _("User has disabled this type of notification.")
-                )
+            
+            # Check if this type of notification is enabled
+            if notification_type == 'BUDGET_ALERT' and not preferences.budget_alerts:
+                raise serializers.ValidationError("Budget alerts are disabled.")
+            elif notification_type == 'EXPENSE_ALERT' and not preferences.expense_alerts:
+                raise serializers.ValidationError("Expense alerts are disabled.")
+            elif notification_type == 'SYSTEM' and not preferences.system_notifications:
+                raise serializers.ValidationError("System notifications are disabled.")
+            elif notification_type == 'REMINDER' and not preferences.reminders:
+                raise serializers.ValidationError("Reminders are disabled.")
+            elif notification_type == 'BUDGET_EXCEEDED' and not preferences.budget_exceeded_alerts:
+                raise serializers.ValidationError("Budget exceeded alerts are disabled.")
+            elif notification_type == 'RECURRING_EXPENSE' and not preferences.recurring_expense_alerts:
+                raise serializers.ValidationError("Recurring expense alerts are disabled.")
+            elif notification_type == 'THRESHOLD_REACHED' and not preferences.threshold_alerts:
+                raise serializers.ValidationError("Threshold alerts are disabled.")
+                
         except NotificationPreference.DoesNotExist:
             pass  # No preferences set, allow notification
 
@@ -82,28 +94,46 @@ class NotificationPreferenceSerializer(serializers.ModelSerializer):
 
         model = NotificationPreference
         fields = [
-            "id",
-            "email_notifications",
-            "push_notifications",
-            "notification_types",
-            "quiet_hours_start",
-            "quiet_hours_end",
-            "minimum_priority",
-            "created_at",
-            "updated_at",
+            'id',
+            'budget_alerts',
+            'expense_alerts',
+            'system_notifications',
+            'reminders',
+            'budget_exceeded_alerts',
+            'recurring_expense_alerts',
+            'threshold_alerts',
+            'email_notifications',
+            'push_notifications',
+            'notification_frequency',
+            'quiet_hours_start',
+            'quiet_hours_end',
+            'created_at',
+            'updated_at',
         ]
-        read_only_fields = ["created_at", "updated_at"]
+        read_only_fields = ['id', 'created_at', 'updated_at']
 
-    def validate_notification_types(self, value):
-        """Validate notification types."""
-        valid_types = dict(Notification.NotificationTypes.choices).keys()
-        invalid_types = [t for t in value if t not in valid_types]
-
-        if invalid_types:
-            raise serializers.ValidationError(
-                _("Invalid notification types: {}").format(", ".join(invalid_types))
-            )
-        return value
+    def validate(self, data):
+        """Validate notification preferences."""
+        quiet_hours_start = data.get('quiet_hours_start')
+        quiet_hours_end = data.get('quiet_hours_end')
+        
+        if quiet_hours_start and not quiet_hours_end:
+            raise serializers.ValidationError({
+                'quiet_hours_end': 'Quiet hours end time must be set if start time is set.'
+            })
+        
+        if quiet_hours_end and not quiet_hours_start:
+            raise serializers.ValidationError({
+                'quiet_hours_start': 'Quiet hours start time must be set if end time is set.'
+            })
+        
+        if quiet_hours_start and quiet_hours_end:
+            if quiet_hours_start == quiet_hours_end:
+                raise serializers.ValidationError({
+                    'quiet_hours': 'Quiet hours start and end times cannot be the same.'
+                })
+        
+        return data
 
 
 class NotificationListSerializer(NotificationSerializer):

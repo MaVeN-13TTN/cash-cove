@@ -75,6 +75,7 @@ class BudgetCreateSerializer(BudgetSerializer):
         """
         Validate budget creation data.
         Ensures no overlapping budgets for the same category.
+        Automatically activates the budget if no overlapping active budget exists.
         """
         data = super().validate(data)
 
@@ -84,6 +85,9 @@ class BudgetCreateSerializer(BudgetSerializer):
         ).filter(
             models.Q(start_date__lte=data["end_date"], end_date__gte=data["start_date"])
         )
+
+        # Logging for debugging
+        print("Overlapping budgets:", overlapping_budgets)
 
         if self.instance:
             overlapping_budgets = overlapping_budgets.exclude(pk=self.instance.pk)
@@ -97,6 +101,10 @@ class BudgetCreateSerializer(BudgetSerializer):
                     )
                 }
             )
+
+        # Automatically activate the budget if no overlapping active budget exists
+        if not overlapping_budgets.exists():
+            data["is_active"] = True
 
         return data
 

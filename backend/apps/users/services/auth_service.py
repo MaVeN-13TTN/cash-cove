@@ -46,11 +46,16 @@ class AuthService:
             ValidationError: If registration fails
         """
     # Create user with transaction
+        # Split the full name into first_name and last_name
+        name_parts = data.get("name", "").split(maxsplit=1)
+        first_name = name_parts[0] if name_parts else ""
+        last_name = name_parts[1] if len(name_parts) > 1 else ""
+
         user = User(
             email=data["email"],
             username=data.get("username", data["email"]),
-            first_name=data.get("first_name", ""),
-            last_name=data.get("last_name", ""),
+            first_name=first_name,
+            last_name=last_name,
         )
         user.set_password(data["password"])
         user.save()

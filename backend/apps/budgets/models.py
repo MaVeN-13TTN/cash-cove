@@ -76,7 +76,7 @@ class Budget(models.Model):
             MaxValueValidator(Decimal("100.00")),
         ],
     )
-    is_active = models.BooleanField(_("Active"), default=True)
+    is_active = models.BooleanField(_("Active"), default=True, help_text=_("Is the budget currently active"))
     description = models.TextField(_("Description"), blank=True)
     created_at = models.DateTimeField(_("Created At"), auto_now_add=True)
     updated_at = models.DateTimeField(_("Updated At"), auto_now=True)

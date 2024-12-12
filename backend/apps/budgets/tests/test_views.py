@@ -115,27 +115,6 @@ class BudgetViewSetTests(APITestCase):
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
         self.assertIn("error", response.data)
 
-    def test_copy_budget(self):
-        """Test copying a budget."""
-        url = reverse("budget-copy", args=[self.budget.id])
-        new_start_date = (self.today + timedelta(days=31)).isoformat()
-
-        response = self.client.post(url, {"start_date": new_start_date}, format="json")
-
-        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
-        self.assertEqual(Budget.objects.count(), 2)
-        self.assertNotEqual(response.data["id"], self.budget.id)
-        self.assertEqual(response.data["start_date"], new_start_date)
-
-    def test_copy_budget_invalid_date(self):
-        """Test copying a budget with invalid date."""
-        url = reverse("budget-copy", args=[self.budget.id])
-
-        response = self.client.post(url, {"start_date": "invalid-date"}, format="json")
-
-        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
-        self.assertIn("error", response.data)
-
     def test_forecast(self):
         """Test budget forecast endpoint."""
         url = reverse("budget-forecast")

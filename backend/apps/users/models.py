@@ -31,7 +31,6 @@ class User(AbstractUser):
     last_login_ip = models.GenericIPAddressField(
         _("Last Login IP"), null=True, blank=True
     )
-    preferences = models.JSONField(_("Preferences"), default=dict, blank=True)
 
     class Meta:
         """

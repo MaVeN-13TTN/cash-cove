@@ -51,8 +51,23 @@ class NotificationService:
         # Check notification preferences
         try:
             preferences = user.notification_preferences
-            if not preferences.can_notify(notification_type, priority):
+            
+            # Check if this type of notification is enabled
+            if notification_type == 'BUDGET_ALERT' and not preferences.budget_alerts:
                 return None
+            elif notification_type == 'EXPENSE_ALERT' and not preferences.expense_alerts:
+                return None
+            elif notification_type == 'SYSTEM' and not preferences.system_notifications:
+                return None
+            elif notification_type == 'REMINDER' and not preferences.reminders:
+                return None
+            elif notification_type == 'BUDGET_EXCEEDED' and not preferences.budget_exceeded_alerts:
+                return None
+            elif notification_type == 'RECURRING_EXPENSE' and not preferences.recurring_expense_alerts:
+                return None
+            elif notification_type == 'THRESHOLD_REACHED' and not preferences.threshold_alerts:
+                return None
+                
         except NotificationPreference.DoesNotExist:
             pass  # No preferences set, proceed with notification
 
@@ -263,6 +278,24 @@ class NotificationService:
             notification_type=Notification.NotificationTypes.RECURRING_EXPENSE,
             priority=Notification.Priority.MEDIUM,
             data={"expense_id": expense.id},
+        )
+
+    @staticmethod
+    def send_budget_creation_notification(budget):
+        """
+        Send a notification to the user when a new budget is created.
+
+        Args:
+            budget: The budget instance that was created
+        """
+        title = "New Budget Created"
+        message = f"Your budget '{budget.name}' has been successfully created."
+        NotificationService.create_notification(
+            user_id=budget.user.id,
+            title=title,
+            message=message,
+            notification_type="BUDGET_ALERT",
+            priority=Notification.Priority.HIGH,
         )
 
     @staticmethod

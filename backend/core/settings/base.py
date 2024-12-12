@@ -50,7 +50,7 @@ LOCAL_APPS = [
     "apps.budgets",
     "apps.expenses",
     "apps.analytics",
-    "apps.notifications",
+    "apps.notifications",  # Add notifications app
 ]
 
 INSTALLED_APPS = DJANGO_APPS + THIRD_PARTY_APPS + LOCAL_APPS

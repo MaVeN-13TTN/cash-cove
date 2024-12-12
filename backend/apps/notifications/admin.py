@@ -56,21 +56,44 @@ class NotificationPreferenceAdmin(admin.ModelAdmin):
         "user",
         "email_notifications",
         "push_notifications",
-        "minimum_priority",
-        "updated_at",
+        "notification_frequency",
     )
 
-    list_filter = ("email_notifications", "push_notifications", "minimum_priority")
+    list_filter = (
+        "email_notifications",
+        "push_notifications",
+        "notification_frequency",
+    )
 
     search_fields = ("user__username", "user__email")
 
     readonly_fields = ("created_at", "updated_at")
 
     fieldsets = (
-        (None, {"fields": ("user", "email_notifications", "push_notifications")}),
+        ("User", {"fields": ("user",)}),
         (
-            _("Notification Settings"),
-            {"fields": ("notification_types", "minimum_priority")},
+            _("Notification Types"),
+            {
+                "fields": (
+                    "budget_alerts",
+                    "expense_alerts",
+                    "system_notifications",
+                    "reminders",
+                    "budget_exceeded_alerts",
+                    "recurring_expense_alerts",
+                    "threshold_alerts",
+                )
+            },
+        ),
+        (
+            _("Delivery Settings"),
+            {
+                "fields": (
+                    "email_notifications",
+                    "push_notifications",
+                    "notification_frequency",
+                )
+            },
         ),
         (
             _("Quiet Hours"),

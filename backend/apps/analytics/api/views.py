@@ -55,6 +55,25 @@ class SpendingAnalyticsViewSet(viewsets.ReadOnlyModelViewSet):
         analytics = AnalyticsService.calculate_spending_analytics(
             user_id=request.user.id, start_date=start_date, end_date=end_date
         )
+
+        if not analytics:
+            return Response(
+                {
+                    "message": "No spending analytics data found for the specified period. Please ensure that you have transactions within this date range.",
+                    "suggestion": "Try adjusting the date range or checking your transaction history.",
+                },
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        if len(analytics) == 1 and analytics[0].get("category") is None:
+            return Response(
+                {
+                    "message": "Spending analytics data is sparse for the specified period. Please ensure that you have transactions within this date range.",
+                    "suggestion": "Try adjusting the date range or checking your transaction history.",
+                },
+                status=status.HTTP_206_PARTIAL_CONTENT,
+            )
+
         return Response(analytics)
 
 
@@ -91,6 +110,25 @@ class BudgetUtilizationViewSet(viewsets.ReadOnlyModelViewSet):
         )
 
         utilization = self.get_queryset().filter(month=month_date)
+
+        if not utilization.exists():
+            return Response(
+                {
+                    "message": "No budget utilization data found for the specified month. Please ensure that you have set a budget for this month.",
+                    "suggestion": "Try setting a budget for this month or checking your budget history.",
+                },
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        if len(utilization) == 1 and utilization[0].get("utilization") is None:
+            return Response(
+                {
+                    "message": "Budget utilization data is sparse for the specified month. Please ensure that you have transactions within this month.",
+                    "suggestion": "Try adjusting the month or checking your transaction history.",
+                },
+                status=status.HTTP_206_PARTIAL_CONTENT,
+            )
+
         serializer = self.get_serializer(utilization, many=True)
         return Response(serializer.data)
 
@@ -126,6 +164,13 @@ class SpendingTrendsView(APIView):
         trends = AnalyticsService.get_category_trends(
             user_id=request.user.id, category=category, months=months
         )
+
+        if not trends:
+            return Response(
+                {"message": "No spending trends data found for the specified category."},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
         serializer = SpendingTrendSerializer(trends, many=True)
         return Response(serializer.data)
 
@@ -142,5 +187,12 @@ class SpendingInsightsView(APIView):
         Get spending insights for the user.
         """
         insights = AnalyticsService.get_spending_insights(user_id=request.user.id)
+
+        if not insights.get("top_categories") and not insights.get("utilization_summary"):
+            return Response(
+                {"message": "No spending insights available."},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
         serializer = SpendingInsightsSerializer(insights)
         return Response(serializer.data)

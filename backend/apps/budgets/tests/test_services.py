@@ -85,17 +85,6 @@ class BudgetServiceTests(TestCase):
         self.assertEqual(summary["remaining_amount"], Decimal("700.00"))
         self.assertEqual(summary["utilization_percentage"], Decimal("30.00"))
 
-    def test_copy_budget(self):
-        """Test copying a budget."""
-        original = Budget.objects.create(**self.budget_data)
-        new_start_date = self.today + timedelta(days=31)
-
-        copied = BudgetService.copy_budget(original, new_start_date)
-        self.assertEqual(copied.amount, original.amount)
-        self.assertEqual(copied.category, original.category)
-        self.assertEqual(copied.start_date, new_start_date)
-        self.assertNotEqual(copied.id, original.id)
-
     def test_get_category_budgets(self):
         """Test getting budgets by category."""
         # Create test budgets

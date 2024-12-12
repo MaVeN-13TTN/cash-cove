@@ -92,26 +92,6 @@ class BudgetViewSet(viewsets.ModelViewSet):
         serializer = self.get_serializer(budgets, many=True)
         return Response(serializer.data)
 
-    @action(detail=True, methods=["post"])
-    def copy(self, request: Request, pk: Any = None) -> Response:
-        """
-        Create a copy of a budget.
-        """
-        budget = self.get_object()
-        start_date = request.data.get("start_date")
-
-        try:
-            start_date = datetime.strptime(start_date, "%Y-%m-%d").date()
-        except (ValueError, TypeError):
-            return Response(
-                {"error": _("Invalid or missing start_date. Use YYYY-MM-DD")},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
-
-        new_budget = BudgetService.copy_budget(budget, start_date)
-        serializer = self.get_serializer(new_budget)
-        return Response(serializer.data, status=status.HTTP_201_CREATED)
-
     @action(detail=False, methods=["get"])
     def forecast(self, request: Request) -> Response:
         """
