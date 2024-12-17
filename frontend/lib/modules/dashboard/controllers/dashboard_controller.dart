@@ -41,7 +41,24 @@ class DashboardController extends GetxController {
   @override
   void onInit() {
     super.onInit();
+    
+    // Initial data load
     _checkUserBudgetsAndExpenses();
+    
+    // Listen to budget changes
+    ever(_budgets, (_) {
+      _log.info('Budgets updated, refreshing dashboard...');
+      if (_budgets.isNotEmpty) {
+        _isUsingDummyData.value = false;
+      }
+      _updateTotals();
+    });
+    
+    // Listen to expense changes
+    ever(_recentExpenses, (_) {
+      _log.info('Expenses updated, refreshing totals...');
+      _updateTotals();
+    });
   }
 
   @override
@@ -55,42 +72,42 @@ class DashboardController extends GetxController {
     _checkUserBudgetsAndExpenses();
   }
 
-  void _checkUserBudgetsAndExpenses() async {
-    try {
-      _isLoading.value = true;
-      _log.info('Checking for user data...');
+  void _checkUserBudgetsAndExpenses() {
+    _isLoading.value = true;
+    _log.info('Checking for user data...');
 
+    Future.wait([
       // Check for existing budgets
-      final budgetsExist = await _budgetRepository.getBudgets().then(
+      _budgetRepository.getBudgets().then(
             (budgets) => budgets.isNotEmpty,
             onError: (error) {
               _log.severe('Error fetching budgets: $error');
               return false;
             },
-          );
-
+          ),
       // Check for existing expenses
-      final expensesExist = await _expenseRepository.getExpenses().then(
+      _expenseRepository.getExpenses().then(
             (expenses) => expenses.isNotEmpty,
             onError: (error) {
               _log.severe('Error fetching expenses: $error');
               return false;
             },
-          );
-
+          ),
+    ]).then((results) {
+      final [budgetsExist, expensesExist] = results;
       _log.info('Budgets exist: $budgetsExist, Expenses exist: $expensesExist');
 
       if (budgetsExist || expensesExist) {
-        await fetchDashboardData();
+        fetchDashboardData();
       } else {
         _loadDummyData();
       }
-    } catch (e) {
+    }).catchError((e) {
       _log.severe('Error checking user data: $e');
       _loadDummyData();
-    } finally {
+    }).whenComplete(() {
       _isLoading.value = false;
-    }
+    });
   }
 
   void _loadDummyData() {
@@ -103,17 +120,20 @@ class DashboardController extends GetxController {
         userId: 'user123',
         name: 'Monthly Budget',
         amount: 1000.0,
+        remainingAmount: 1000.0,
         currency: 'USD',
         startDate: now,
         endDate: now.add(const Duration(days: 30)),
         category: 'General',
-        spentAmount: 0.0,
         createdAt: now,
         updatedAt: now,
         color: '#FF4081',
         recurrence: 'monthly',
         notificationThreshold: 0.8,
         description: 'Monthly household budget',
+        isActive: true,
+        isExpired: false,
+        utilizationPercentage: 0.0,
       ),
     ];
 
@@ -203,7 +223,13 @@ class DashboardController extends GetxController {
     );
   }
 
-  void refreshDashboard() {
-    _resetStateAndCheckData();
+  Future<void> refreshDashboard() async {
+    _log.info('Refreshing dashboard data...');
+    if (_isUsingDummyData.value) {
+      _log.info('Checking for real data before refresh...');
+      _checkUserBudgetsAndExpenses();
+    } else {
+      await fetchDashboardData();
+    }
   }
 }

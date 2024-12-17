@@ -53,13 +53,18 @@ class BudgetDetailView extends GetView<BudgetController> {
       orElse: () => BudgetCategory.values.first
     );
     
+    final color = budget.color?.substring(1, 7);
+    final colorValue = color != null 
+        ? int.parse(color, radix: 16) + 0xFF000000
+        : 0xFF000000;
+    
     return Row(
       children: [
         Container(
           width: 60,
           height: 60,
           decoration: BoxDecoration(
-            color: Color(int.parse(budget.color.substring(1, 7), radix: 16) + 0xFF000000),
+            color: Color(colorValue),
             borderRadius: BorderRadius.circular(12),
           ),
           child: const Icon(
@@ -95,6 +100,11 @@ class BudgetDetailView extends GetView<BudgetController> {
     final remaining = budget.amount * (1 - progress);
     final spent = budget.amount * progress;
 
+    final color = budget.color?.substring(1, 7);
+    final colorValue = color != null 
+        ? int.parse(color, radix: 16) + 0xFF000000
+        : 0xFF000000;
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -107,7 +117,7 @@ class BudgetDetailView extends GetView<BudgetController> {
           value: progress,
           backgroundColor: Theme.of(context).colorScheme.surfaceContainerHighest,
           valueColor: AlwaysStoppedAnimation<Color>(
-            Color(int.parse(budget.color.substring(1, 7), radix: 16) + 0xFF000000),
+            Color(colorValue),
           ),
           minHeight: 8,
         ),

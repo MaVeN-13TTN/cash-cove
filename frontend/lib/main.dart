@@ -82,10 +82,12 @@ void main() async {
   await Get.putAsync<DioClient>(() async => await DioClient.initialize(
         baseUrl: baseUrl,
         tokenManager: tokenManager,
+        dialogService: Get.find<DialogService>(),
+        authService: Get.find<AuthService>(),
       ));
 
   // Initialize BudgetProvider with DioApiAdapter
-  final dioApiAdapter = DioApiAdapter(Get.find<DioClient>());
+  final dioApiAdapter = await DioApiAdapter.initialize(Get.find<DioClient>());
   final budgetProvider = BudgetProvider(dioApiAdapter);
   final budgetRepository = BudgetRepository(budgetProvider);
   await budgetRepository.init(); // Initialize the repository
@@ -94,6 +96,7 @@ void main() async {
   // Initialize AuthController
   Get.put(AuthController(
     dioClient: Get.find<DioClient>(),
+    dialogService: Get.find<DialogService>(),
   ));
 
   runApp(const MyApp());

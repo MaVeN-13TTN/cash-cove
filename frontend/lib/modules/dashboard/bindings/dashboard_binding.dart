@@ -1,4 +1,6 @@
 import 'package:get/get.dart';
+import '../../../../core/network/dio_client.dart';
+import '../../../../core/services/storage/secure_storage.dart';
 import '../controllers/dashboard_controller.dart';
 import '../../../../data/repositories/budget_repository.dart';
 import '../../../../data/repositories/expense_repository.dart';
@@ -9,9 +11,13 @@ import '../../../../data/providers/api_provider.dart';
 class DashboardBinding extends Bindings {
   @override
   void dependencies() {
-    // Register API Provider with base URL
+    final dioClient = Get.find<DioClient>();
+    final secureStorage = Get.find<SecureStorage>();
+
+    // Register API Provider with DioClient and SecureStorage
     Get.lazyPut<ApiProvider>(() => ApiProvider(
-      baseUrl: 'http://127.0.0.1:8000', // Django development server default port
+      dio: dioClient.dio,
+      storage: secureStorage,
     ));
 
     // Ensure providers are registered first

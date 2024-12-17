@@ -7,6 +7,7 @@ import '../../../../shared/widgets/custom_date_picker.dart';
 import '../../../../data/models/budget/budget_model.dart';
 import '../../../../data/models/budget/budget_category.dart';
 import '../../controllers/budget_controller.dart';
+import '../../../../core/services/auth/auth_service.dart';
 
 class BudgetForm extends StatefulWidget {
   final BudgetModel? budget;
@@ -22,6 +23,7 @@ class _BudgetFormState extends State<BudgetForm> {
   final _nameController = TextEditingController();
   final _amountController = TextEditingController();
   final _descriptionController = TextEditingController();
+  late final AuthService _authService;
   
   DateTime? _startDate;
   DateTime? _endDate;
@@ -33,6 +35,7 @@ class _BudgetFormState extends State<BudgetForm> {
   @override
   void initState() {
     super.initState();
+    _authService = Get.find<AuthService>();
     if (widget.budget != null) {
       _nameController.text = widget.budget!.name;
       _amountController.text = widget.budget!.amount.toString();
@@ -42,7 +45,9 @@ class _BudgetFormState extends State<BudgetForm> {
       _startDate = widget.budget!.startDate;
       _endDate = widget.budget!.endDate;
       _notificationThreshold = widget.budget!.notificationThreshold;
-      _selectedColor = Color(int.parse(widget.budget!.color.substring(1, 7), radix: 16) + 0xFF000000);
+      if (widget.budget!.color != null) {
+        _selectedColor = Color(int.parse(widget.budget!.color!.substring(1, 7), radix: 16) + 0xFF000000);
+      }
     }
   }
 
@@ -56,29 +61,29 @@ class _BudgetFormState extends State<BudgetForm> {
 
   void _submitForm() {
     if (_formKey.currentState?.validate() ?? false) {
-      final budget = BudgetModel(
-        id: widget.budget?.id ?? DateTime.now().millisecondsSinceEpoch.toString(),
-        userId: 'current_user', // TODO: Replace with actual user ID
-        currency: 'USD', // TODO: Replace with actual currency
-        name: _nameController.text,
-        amount: double.parse(_amountController.text),
-        category: _selectedCategory,
-        description: _descriptionController.text,
-        startDate: _startDate ?? DateTime.now(),
-        endDate: _endDate ?? DateTime.now().add(const Duration(days: 30)),
-        spentAmount: widget.budget?.spentAmount ?? 0.0,
-        createdAt: widget.budget?.createdAt ?? DateTime.now(),
-        updatedAt: DateTime.now(),
-        recurrence: _selectedRecurrence,
-        notificationThreshold: _notificationThreshold,
-        color: '#${_selectedColor.value.toRadixString(16).substring(2)}',
-      );
+      final data = {
+        'name': _nameController.text,
+        'amount': double.parse(_amountController.text),
+        'category': _selectedCategory,
+        'description': _descriptionController.text,
+        'startDate': _startDate ?? DateTime.now(),
+        'endDate': _endDate ?? DateTime.now().add(const Duration(days: 30)),
+        'userId': _authService.currentUser ?? 'default_user',
+        'currency': _authService.displayName.isEmpty ? 'USD' : 'KES',
+        'recurrence': _selectedRecurrence,
+        'notificationThreshold': _notificationThreshold,
+        'color': '#${_selectedColor.value.toRadixString(16).substring(2)}',
+        'isActive': true,
+        'isExpired': false,
+        'remainingAmount': double.parse(_amountController.text),
+        'utilizationPercentage': 0.0,
+      };
 
       final controller = Get.find<BudgetController>();
       if (widget.budget != null) {
-        controller.updateBudget(budget);
+        controller.updateBudget(widget.budget!.id, data);
       } else {
-        controller.createBudget(budget);
+        controller.createBudget(data);
       }
 
       Get.back();
@@ -114,50 +119,7 @@ class _BudgetFormState extends State<BudgetForm> {
                 .displayName,
             onChanged: (value) {
               if (value != null) {
-                setState(() {
-                  _selectedCategory = value;
-                });
-              }
-            },
-          ),
-          const SizedBox(height: 16),
-          Row(
-            children: [
-              Expanded(
-                child: CustomDatePicker(
-                  label: 'Start Date',
-                  initialDate: _startDate,
-                  onDateSelected: (date) {
-                    setState(() {
-                      _startDate = date;
-                    });
-                  },
-                ),
-              ),
-              const SizedBox(width: 16),
-              Expanded(
-                child: CustomDatePicker(
-                  label: 'End Date',
-                  initialDate: _endDate,
-                  onDateSelected: (date) {
-                    setState(() {
-                      _endDate = date;
-                    });
-                  },
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 16),
-          CustomDropdown<String>(
-            label: 'Recurrence',
-            value: _selectedRecurrence,
-            items: const ['Daily', 'Weekly', 'Monthly', 'Yearly', 'Custom'],
-            onChanged: (value) {
-              if (value != null) {
-                setState(() {
-                  _selectedRecurrence = value;
-                });
+                setState(() => _selectedCategory = value);
               }
             },
           ),
@@ -166,6 +128,28 @@ class _BudgetFormState extends State<BudgetForm> {
             controller: _descriptionController,
             label: 'Description',
             maxLines: 3,
+          ),
+          const SizedBox(height: 16),
+          Row(
+            children: [
+              Expanded(
+                child: CustomDatePicker(
+                  label: 'Start Date',
+                  initialDate: _startDate,
+                  onDateSelected: (date) => setState(() => _startDate = date),
+                  validator: Validators.validateDate,
+                ),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: CustomDatePicker(
+                  label: 'End Date',
+                  initialDate: _endDate,
+                  onDateSelected: (date) => setState(() => _endDate = date),
+                  validator: Validators.validateDate,
+                ),
+              ),
+            ],
           ),
           const SizedBox(height: 24),
           ElevatedButton(

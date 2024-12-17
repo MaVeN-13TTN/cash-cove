@@ -1,19 +1,23 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'dart:async';
-import 'package:dio/dio.dart' show DioException;
 import '../../../core/network/dio_client.dart';
 import '../../../core/utils/logger_utils.dart';
 import '../../../core/utils/storage_utils.dart';
-import '../../../app/config/routes/app_routes.dart';
+import '../../../core/services/dialog/dialog_service.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:flutter_facebook_auth/flutter_facebook_auth.dart';
 import 'package:sign_in_with_apple/sign_in_with_apple.dart';
 
 class AuthController extends GetxController {
   final DioClient _dioClient;
+  final DialogService _dialogService;
 
-  AuthController({required DioClient dioClient}) : _dioClient = dioClient;
+  AuthController({
+    required DioClient dioClient,
+    required DialogService dialogService,
+  })  : _dioClient = dioClient,
+        _dialogService = dialogService;
 
   final _isAuthenticated = false.obs;
   final _user = Rxn<Map<String, dynamic>>();
@@ -60,7 +64,7 @@ class AuthController extends GetxController {
       _isLoading.value = true;
       _error.value = '';
 
-      final response = await _dioClient.dio.post('/auth/login/', data: {
+      final response = await _dioClient.dio.post('/auth/token/', data: {
         'email': email,
         'password': password,
       });
@@ -72,34 +76,35 @@ class AuthController extends GetxController {
         await checkAuthStatus();
       }
     } catch (e) {
-      Get.snackbar(
-        'Login Error',
-        e.toString(),
-        snackPosition: SnackPosition.BOTTOM,
+      _dialogService.showError(
+        title: 'Login Error',
+        message: e.toString(),
       );
+      LoggerUtils.error('Login Error', e);
       rethrow;
     } finally {
       _isLoading.value = false;
     }
   }
 
-  Future<void> signup(String name, String email, String password,
-      String confirmPassword, String username, bool termsAccepted) async {
+  Future<void> signup({
+    required String firstName,
+    required String lastName,
+    required String email,
+    required String password,
+    required String confirmPassword,
+    required String username,
+    required bool termsAccepted,
+  }) async {
     try {
-      // Show loading dialog
-      Get.dialog(
-        const Center(
-          child: CircularProgressIndicator(),
-        ),
-        barrierDismissible: false,
-      );
-
       _isLoading.value = true;
       _error.value = '';
 
       // Step 1: Register User
-      final registrationResponse = await _dioClient.dio.post('/auth/register/', data: {
-        'name': name,
+      final registrationResponse =
+          await _dioClient.dio.post('/auth/register/', data: {
+        'first_name': firstName,
+        'last_name': lastName,
         'email': email,
         'password': password,
         'confirm_password': confirmPassword,
@@ -108,73 +113,14 @@ class AuthController extends GetxController {
       });
 
       if (registrationResponse.statusCode == 201) {
-        // Log registration response for debugging
-        LoggerUtils.debug('Registration Response: ${registrationResponse.data}');
-
-        // Close loading dialog
-        Get.back();
-
-        // Show signup success snackbar
-        Get.snackbar(
-          'Signup Successful',
-          'Please log in with your new account',
-          snackPosition: SnackPosition.BOTTOM,
-          duration: const Duration(seconds: 3),
-          backgroundColor: Colors.green,
-          colorText: Colors.white,
-        );
-
-        // Navigate to login view with pre-filled email
-        await Future.delayed(const Duration(seconds: 3), () {
-          Get.offNamed(
-            AppRoutes.login, 
-            arguments: {
-              'pre_fill_email': email,
-              'signup_success': true
-            }
-          );
-        });
+        // Update authentication state
+        await checkAuthStatus();
       } else {
-        // Close loading dialog
-        Get.back();
-
-        // Handle unexpected registration status codes
-        throw Exception('Signup failed with status code: ${registrationResponse.statusCode}');
+        throw Exception(
+            'Signup failed with status code: ${registrationResponse.statusCode}');
       }
     } catch (e) {
-      // Close loading dialog
-      if (Get.isDialogOpen ?? false) {
-        Get.back();
-      }
-
-      // More detailed error logging
-      LoggerUtils.error('Signup Error', e);
-
-      // Determine the most appropriate error message
-      String errorMessage;
-      if (e is DioException) {
-        // Handle Dio-specific errors
-        errorMessage = e.response?.data?['detail'] ?? 
-                       e.response?.data?['error'] ?? 
-                       e.message ?? 
-                       'An unexpected network error occurred';
-      } else {
-        errorMessage = e.toString();
-      }
-
-      // Update error state
-      _error.value = errorMessage;
-
-      // Show error snackbar
-      Get.snackbar(
-        'Signup Error',
-        errorMessage,
-        snackPosition: SnackPosition.BOTTOM,
-        backgroundColor: Colors.red,
-        colorText: Colors.white,
-        duration: const Duration(seconds: 5),
-      );
-
+      _error.value = 'Signup failed. Please try again.';
       rethrow;
     } finally {
       _isLoading.value = false;
@@ -187,12 +133,13 @@ class AuthController extends GetxController {
       // Initialize Google Sign In
       final GoogleSignIn googleSignIn = GoogleSignIn();
       final GoogleSignInAccount? googleUser = await googleSignIn.signIn();
-      
+
       if (googleUser == null) return;
 
       // Get auth details from request
-      final GoogleSignInAuthentication googleAuth = await googleUser.authentication;
-      
+      final GoogleSignInAuthentication googleAuth =
+          await googleUser.authentication;
+
       // Send token to backend
       final response = await _dioClient.dio.post('/auth/google/', data: {
         'token': googleAuth.idToken,
@@ -217,17 +164,17 @@ class AuthController extends GetxController {
   Future<void> signInWithFacebook() async {
     try {
       _isLoading.value = true;
-      
+
       // Initialize Facebook Login
       final LoginResult result = await FacebookAuth.instance.login();
-      
+
       if (result.status != LoginStatus.success) {
         throw 'Facebook login failed';
       }
 
       // Get user data
       final userData = await FacebookAuth.instance.getUserData();
-      
+
       // Send token to backend
       final response = await _dioClient.dio.post('/auth/facebook/', data: {
         'token': result.accessToken?.token,
@@ -253,7 +200,7 @@ class AuthController extends GetxController {
   Future<void> signInWithApple() async {
     try {
       _isLoading.value = true;
-      
+
       // Get Apple credentials
       final credential = await SignInWithApple.getAppleIDCredential(
         scopes: [
@@ -261,7 +208,7 @@ class AuthController extends GetxController {
           AppleIDAuthorizationScopes.fullName,
         ],
       );
-      
+
       // Send credentials to backend
       final response = await _dioClient.dio.post('/auth/apple/', data: {
         'identityToken': credential.identityToken,
@@ -484,18 +431,28 @@ class AuthController extends GetxController {
     }
   }
 
+  Future<void> setUserData(Map<String, dynamic> userData) async {
+    LoggerUtils.info('Setting user data');
+    try {
+      _user.value = userData;
+      await StorageUtils.setUserData(userData);
+      _isAuthenticated.value = true;
+      LoggerUtils.info('User data set successfully');
+    } catch (e) {
+      LoggerUtils.error('Error setting user data: $e');
+      throw Exception('Failed to set user data');
+    }
+  }
+
   Future<void> getUserProfile() async {
+    LoggerUtils.info('Fetching user profile');
     try {
       final response = await _dioClient.dio.get('/auth/profile/');
-
-      if (response.statusCode == 200) {
-        _user.value = response.data;
-        _isAuthenticated.value = true;
-        _isEmailVerified.value = response.data['is_email_verified'] ?? false;
-      }
-    } catch (e, stackTrace) {
-      LoggerUtils.error('Error fetching user profile', e, stackTrace);
-      await logout();
+      await setUserData(response.data);
+      LoggerUtils.info('User profile fetched successfully');
+    } catch (e) {
+      LoggerUtils.error('Error fetching user profile: $e');
+      throw Exception('Failed to fetch user profile');
     }
   }
 
@@ -545,23 +502,23 @@ class AuthController extends GetxController {
   }) async {
     try {
       LoggerUtils.info('Updating registration state for: $email');
-      
+
       // Store temporary email for login
       await StorageUtils.setTemporaryEmail(email);
-      
+
       // Update verification status
       _isEmailVerified.value = !requiresVerification;
-      
+
       // Store verification requirement
       await StorageUtils.setVerificationRequired(requiresVerification);
-      
+
       // Update user data with registration info
       _user.value = {
         'email': email,
         'email_verified': !requiresVerification,
         'registration_completed': true,
       };
-      
+
       LoggerUtils.info('Registration state updated successfully');
     } catch (e) {
       LoggerUtils.error('Error updating registration state', e);

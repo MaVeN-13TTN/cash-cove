@@ -2,6 +2,7 @@ import 'package:hive_flutter/hive_flutter.dart';
 import '../models/expense/expense_model.dart';
 import '../providers/expense_provider.dart';
 import '../../core/services/hive_service.dart';
+import '../../shared/utils/response_handler.dart';
 
 class ExpenseRepository {
   final ExpenseProvider _expenseProvider;
@@ -59,6 +60,12 @@ class ExpenseRepository {
         page: page,
         limit: limit,
       );
+
+      // Check for empty response
+      if (ResponseHandler.isEmptyResponse(expenses)) {
+        return [];  // Return empty list to trigger empty state in UI
+      }
+
       await _updateCache(expenses);
       return expenses;
     } catch (e) {

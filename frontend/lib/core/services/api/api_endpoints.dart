@@ -1,7 +1,7 @@
 class ApiEndpoints {
   // API Version
   static const String apiVersion = 'v1';
-  
+
   // Base URLs for different environments
   static const String _devBaseUrl = 'http://localhost:8000';
   static const String _stagingBaseUrl = 'https://staging-api.budgettracker.com';
@@ -9,7 +9,8 @@ class ApiEndpoints {
 
   // Get base URL based on environment
   static String get baseUrl {
-    const environment = String.fromEnvironment('ENVIRONMENT', defaultValue: 'dev');
+    const environment =
+        String.fromEnvironment('ENVIRONMENT', defaultValue: 'dev');
     final baseUrl = switch (environment) {
       'prod' => _prodBaseUrl,
       'staging' => _stagingBaseUrl,
@@ -19,7 +20,7 @@ class ApiEndpoints {
   }
 
   // Auth endpoints
-  static const String login = '/auth/login/';
+  static const String login = '/auth/token/';
   static const String register = '/auth/register/';
   static const String refreshToken = '/auth/token/refresh/';
   static const String logout = '/auth/logout/';
@@ -32,7 +33,7 @@ class ApiEndpoints {
 
   // Budget endpoints
   static const String budgets = '/budgets/';
-  static const String budgetCategories = '/budgets/categories/';
+  static const String budgetCategories = '/budgets/category/';
   static const String budgetSharing = '/budgets/sharing/';
   static const String activeBudgets = '/budgets/active/';
   static const String copyBudget = '/budgets/{id}/copy/';
@@ -45,23 +46,20 @@ class ApiEndpoints {
   static const String expenseSummary = '/expenses/summary/';
 
   // Analytics endpoints
-  static const String analyticsSpending = '/analytics/spending/';
-  static const String analyticsUtilization = '/analytics/utilization/';
+  static const String analyticsSpending = '/analytics/spending/by-category/';
+  static const String analyticsUtilization =
+      '/analytics/budget/monthly-summary/';
   static const String analyticsTrends = '/analytics/trends/';
   static const String analyticsInsights = '/analytics/insights/';
   static const String analyticsEvents = '/analytics/events/';
 
   // Notifications endpoints
   static const String notifications = '/notifications/';
-  static const String notificationSettings = '/notifications/settings/';
-  static const String markAllNotificationsRead = '/notifications/mark_all_read/';
+  static const String notificationSettings = '/notifications/preferences/';
+  static const String markAllNotificationsRead =
+      '/notifications/mark_all_read/';
   static const String notificationBulkAction = '/notifications/bulk_action/';
   static const String notificationCounts = '/notifications/counts/';
-
-  // Shared expenses
-  static const String sharedExpenses = '/shared/expenses/';
-  static const String sharedGroups = '/shared/groups/';
-  static const String sharedInvites = '/shared/invites/';
 
   // Reports endpoints
   static const String reports = '/reports/';

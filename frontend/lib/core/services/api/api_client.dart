@@ -2,7 +2,6 @@ import 'package:dio/dio.dart' as dio_client;
 import 'package:get/get.dart';
 import 'package:flutter_cache_manager/flutter_cache_manager.dart';
 import 'package:hive/hive.dart';
-import '../storage/secure_storage.dart';
 import '../../utils/logger_utils.dart';
 import 'interceptors/auth_interceptor.dart';
 import 'interceptors/error_interceptor.dart';
@@ -28,7 +27,7 @@ class ApiClient extends GetxService {
   static ApiClient? _instance;
 
   ApiClient._({
-    required SecureStorage storage, 
+    required TokenManager tokenManager, 
     required DefaultCacheManager cacheManager,
     required Box<String> offlineRequestBox,
   }) : 
@@ -68,7 +67,6 @@ class ApiClient extends GetxService {
     dio_client.Dio? testDio,
   }) async {
     if (_instance == null) {
-      final storage = await SecureStorage.initialize();
       final cacheManager = DefaultCacheManager();
       final authService = Get.find<AuthService>();
       final dialogService = Get.find<DialogService>();
@@ -78,7 +76,7 @@ class ApiClient extends GetxService {
       final offlineRequestBox = await hiveService.getOfflineRequestsBox();
 
       _instance = ApiClient._(
-        storage: storage, 
+        tokenManager: tokenManager, 
         cacheManager: cacheManager,
         offlineRequestBox: offlineRequestBox,
       );
@@ -117,7 +115,7 @@ class ApiClient extends GetxService {
 
       // Add interceptors in the correct order
       _instance!._dio.interceptors.addAll([
-        AuthInterceptor(storage),
+        AuthInterceptor(tokenManager),
         ErrorInterceptor(
           authService: authService,
           dialogService: dialogService,
@@ -143,7 +141,7 @@ class ApiClient extends GetxService {
           onError: (error, handler) async {
             if (error.response?.statusCode == 401) {
               // Handle unauthorized error
-              final refreshToken = await storage.getRefreshToken();
+              final refreshToken = await tokenManager.getRefreshToken();
               if (refreshToken != null) {
                 try {
                   final response = await _instance!._dio.post(
@@ -152,26 +150,29 @@ class ApiClient extends GetxService {
                   );
 
                   if (response.statusCode == 200) {
-                    await storage.setToken(response.data['access']);
+                    await tokenManager.setTokens(
+                      accessToken: response.data['access'],
+                      refreshToken: response.data['refresh'],
+                    );
                     error.requestOptions.headers['Authorization'] = 'Bearer ${response.data['access']}';
                     
                     // Retry the original request
-                    final opts = dio_client.Options(
+                    final options = dio_client.Options(
                       method: error.requestOptions.method,
                       headers: error.requestOptions.headers,
                     );
-                    final clonedRequest = await _instance!._dio.request(
+                    final retryResponse = await _instance!._dio.request(
                       error.requestOptions.path,
-                      options: opts,
                       data: error.requestOptions.data,
                       queryParameters: error.requestOptions.queryParameters,
+                      options: options,
                     );
                     
-                    return handler.resolve(clonedRequest);
+                    return handler.resolve(retryResponse);
                   }
                 } catch (e) {
-                  // Refresh token failed, proceed with error
-                  return handler.next(error);
+                  await tokenManager.clearTokens();
+                  LoggerUtils.error('Token refresh failed', e);
                 }
               }
             }

@@ -38,12 +38,14 @@ class AppPages {
       page: () => const LoginView(),
       binding: LoginBinding(),
       transition: Transition.fadeIn,
+      preventDuplicates: true,
     ),
     GetPage(
       name: AppRoutes.register,
       page: () => const SignupView(),
       binding: SignupBinding(),
       transition: Transition.fadeIn,
+      preventDuplicates: true,
     ),
     GetPage(
       name: AppRoutes.forgotPassword,

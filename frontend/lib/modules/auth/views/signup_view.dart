@@ -5,6 +5,7 @@ import '../controllers/auth_controller.dart';
 import '../controllers/signup_controller.dart';
 import 'widgets/index.dart';
 import '../../../app/config/routes/app_routes.dart';
+import '../../../core/utils/logger_utils.dart';
 
 class SignupView extends StatefulWidget {
   const SignupView({Key? key}) : super(key: key);
@@ -20,6 +21,11 @@ class _SignupViewState extends State<SignupView> {
     // Store both scaffold context and top padding before async operation
     final scaffoldContext = ScaffoldMessenger.of(context);
     final topPadding = MediaQuery.of(context).padding.top;
+
+    LoggerUtils.info('Attempting signup...');
+    LoggerUtils.info('Form is valid: ${controller.isFormValid}');
+    LoggerUtils.info('Terms accepted: ${controller.acceptedTerms}');
+    LoggerUtils.info('Can submit: ${controller.canSubmit}');
 
     try {
       await controller.signup();
@@ -42,6 +48,7 @@ class _SignupViewState extends State<SignupView> {
         );
       }
     } catch (e) {
+      LoggerUtils.error('Signup error', e);
       if (!mounted) return;
 
       // Show the actual error from the backend
@@ -81,7 +88,7 @@ class _SignupViewState extends State<SignupView> {
         child: SingleChildScrollView(
           padding: const EdgeInsets.all(24.0),
           child: Form(
-            key: SignupController.formKey,
+            key: controller.formKey,
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
@@ -103,13 +110,24 @@ class _SignupViewState extends State<SignupView> {
                 ),
                 const SizedBox(height: 32),
 
-                // Name Field
+                // First Name Field
                 AppTextField(
-                  controller: controller.nameController,
-                  label: 'Full Name',
-                  hint: 'Enter your full name',
+                  controller: controller.firstNameController,
+                  label: 'First Name',
+                  hint: 'Enter your first name',
                   prefixIcon: Icons.person_outline,
-                  validator: controller.validateName,
+                  validator: controller.validateFirstName,
+                  textCapitalization: TextCapitalization.words,
+                ),
+                const SizedBox(height: 16),
+
+                // Last Name Field
+                AppTextField(
+                  controller: controller.lastNameController,
+                  label: 'Last Name',
+                  hint: 'Enter your last name',
+                  prefixIcon: Icons.person_outline,
+                  validator: controller.validateLastName,
                   textCapitalization: TextCapitalization.words,
                 ),
                 const SizedBox(height: 16),

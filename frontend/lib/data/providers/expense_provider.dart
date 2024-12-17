@@ -30,11 +30,10 @@ class ExpenseProvider {
         if (minAmount != null) 'min_amount': minAmount.toString(),
         if (maxAmount != null) 'max_amount': maxAmount.toString(),
         if (tags != null && tags.isNotEmpty) 'tags': tags.join(','),
-        'page': page.toString(),
         if (limit != null) 'limit': limit.toString(),
       };
 
-      final response = await _apiProvider.get('/api/v1/expenses/', queryParameters: queryParams);
+      final response = await _apiProvider.get('/expenses/?${Uri(queryParameters: queryParams).query}');
       final List<dynamic> expenses = response['data'] ?? [];
       return expenses.map((json) => ExpenseModel.fromJson(json)).toList();
     } on ApiException catch (e) {
@@ -44,33 +43,30 @@ class ExpenseProvider {
   }
 
   Future<ExpenseModel> getExpense(String id) async {
-    final response = await _apiProvider.get('/api/v1/expenses/$id/');
+    final response = await _apiProvider.get('/expenses/$id/');
     return ExpenseModel.fromJson(response['data']);
   }
 
-  Future<ExpenseModel> createExpense(Map<String, dynamic> data) async {
-    final response = await _apiProvider.post('/api/v1/expenses/', data);
+  Future<ExpenseModel> createExpense(Map<String, dynamic> expenseData) async {
+    final response = await _apiProvider.post('/expenses/', expenseData);
     return ExpenseModel.fromJson(response['data']);
   }
 
-  Future<ExpenseModel> updateExpense(String id, Map<String, dynamic> data) async {
-    final response = await _apiProvider.put('/api/v1/expenses/$id/', data);
+  Future<ExpenseModel> updateExpense(String id, Map<String, dynamic> expenseData) async {
+    final response = await _apiProvider.put('/expenses/$id/', expenseData);
     return ExpenseModel.fromJson(response['data']);
   }
 
   Future<void> deleteExpense(String id) async {
-    await _apiProvider.delete('/api/v1/expenses/$id/');
+    await _apiProvider.delete('/expenses/$id/');
   }
 
   Future<Map<String, double>> getExpensesByCategory(DateTime startDate, DateTime endDate) async {
-    final response = await _apiProvider.get(
-      '/api/v1/expenses/category_distribution/',
-      queryParameters: {
-        'start_date': startDate.toIso8601String(),
-        'end_date': endDate.toIso8601String(),
-      },
-    );
-    
+    final queryParams = {
+      'start_date': startDate.toIso8601String(),
+      'end_date': endDate.toIso8601String(),
+    };
+    final response = await _apiProvider.get('/expenses/category_distribution/?${Uri(queryParameters: queryParams).query}');
     final Map<String, dynamic> data = response['data'] ?? {};
     return data.map((key, value) => MapEntry(key, (value as num).toDouble()));
   }
@@ -79,13 +75,11 @@ class ExpenseProvider {
     int months = 12,
     String? category,
   }) async {
-    final response = await _apiProvider.get(
-      '/api/v1/expenses/monthly_trend/',
-      queryParameters: {
-        'months': months.toString(),
-        if (category != null) 'category': category,
-      },
-    );
+    final queryParams = {
+      'months': months.toString(),
+      if (category != null) 'category': category,
+    };
+    final response = await _apiProvider.get('/expenses/monthly_trend/?${Uri(queryParameters: queryParams).query}');
     return List<Map<String, dynamic>>.from(response['data'] ?? []);
   }
 
@@ -95,68 +89,53 @@ class ExpenseProvider {
     required DateTime endDate,
     required String frequency,
   }) async {
-    final response = await _apiProvider.post(
-      '/api/v1/expenses/create_recurring/',
-      {
-        'expense_data': expenseData,
-        'start_date': startDate.toIso8601String(),
-        'end_date': endDate.toIso8601String(),
-        'frequency': frequency,
-      },
-    );
+    final queryParams = {
+      'expense_data': expenseData,
+      'start_date': startDate.toIso8601String(),
+      'end_date': endDate.toIso8601String(),
+      'frequency': frequency,
+    };
+    final response = await _apiProvider.post('/expenses/create_recurring/', queryParams);
     return (response['data'] as List)
         .map((json) => ExpenseModel.fromJson(json))
         .toList();
   }
 
   Future<List<ExpenseModel>> getRecurringExpenseForecast({int months = 3}) async {
-    final response = await _apiProvider.get(
-      '/api/v1/expenses/forecast/',
-      queryParameters: {'months': months.toString()},
-    );
+    final queryParams = {'months': months.toString()};
+    final response = await _apiProvider.get('/expenses/forecast/?${Uri(queryParameters: queryParams).query}');
     return (response['data'] as List)
         .map((json) => ExpenseModel.fromJson(json))
         .toList();
   }
 
   Future<ExpenseModel> attachToBudget(String expenseId, String budgetId) async {
-    final response = await _apiProvider.post(
-      '/api/v1/expenses/$expenseId/attach_to_budget/',
-      {'budget_id': budgetId},
-    );
+    final response = await _apiProvider.post('/expenses/$expenseId/attach_to_budget/', {'budget_id': budgetId});
     return ExpenseModel.fromJson(response['data']);
   }
 
   Future<ExpenseModel> duplicateExpense(String expenseId) async {
-    final response = await _apiProvider.post(
-      '/api/v1/expenses/$expenseId/duplicate/',
-      {},
-    );
+    final response = await _apiProvider.post('/expenses/$expenseId/duplicate/', {});
     return ExpenseModel.fromJson(response['data']);
   }
 
   Future<Map<String, dynamic>> getExpenseInsights() async {
-    final response = await _apiProvider.get('/api/v1/expenses/insights/');
+    final response = await _apiProvider.get('/expenses/insights/');
     return Map<String, dynamic>.from(response['data'] ?? {});
   }
 
   // New Methods for Tags
   Future<void> addTags(String expenseId, List<String> tags) async {
-    await _apiProvider.post(
-      '/api/v1/expenses/$expenseId/tags/',
-      {'tags': tags},
-    );
+    final queryParams = {'tags': tags};
+    await _apiProvider.post('/expenses/$expenseId/tags/', queryParams);
   }
 
   Future<void> removeTags(String expenseId, List<String> tags) async {
-    await _apiProvider.delete(
-      '/api/v1/expenses/$expenseId/tags/',
-      data: {'tags': tags},
-    );
+    await _apiProvider.delete('/expenses/$expenseId/tags/');
   }
 
   Future<List<String>> getTags(String expenseId) async {
-    final response = await _apiProvider.get('/api/v1/expenses/$expenseId/tags/');
+    final response = await _apiProvider.get('/expenses/$expenseId/tags/');
     return List<String>.from(response['data'] ?? []);
   }
 
@@ -168,31 +147,22 @@ class ExpenseProvider {
         filename: attachment.path.split('/').last,
       ),
     });
-    await _apiProvider.post(
-      '/api/v1/expenses/$expenseId/attachments/',
-      formData,
-    );
+    await _apiProvider.post('/expenses/$expenseId/attachments/', formData);
   }
 
   Future<void> removeAttachment(String expenseId, String attachmentId) async {
-    await _apiProvider.delete(
-      '/api/v1/expenses/$expenseId/attachments/$attachmentId/',
-    );
+    await _apiProvider.delete('/expenses/$expenseId/attachments/$attachmentId/');
   }
 
   Future<List<String>> getAttachments(String expenseId) async {
-    final response = await _apiProvider.get(
-      '/api/v1/expenses/$expenseId/attachments/',
-    );
+    final response = await _apiProvider.get('/expenses/$expenseId/attachments/');
     return List<String>.from(response['data'] ?? []);
   }
 
   // Search
   Future<List<ExpenseModel>> searchExpenses(String query) async {
-    final response = await _apiProvider.get(
-      '/api/v1/expenses/search/',
-      queryParameters: {'q': query},
-    );
+    final queryParams = {'q': query};
+    final response = await _apiProvider.get('/expenses/search/?${Uri(queryParameters: queryParams).query}');
     return (response['data'] as List)
         .map((json) => ExpenseModel.fromJson(json))
         .toList();
@@ -200,12 +170,12 @@ class ExpenseProvider {
 
   // Advanced Analytics
   Future<Map<String, dynamic>> getExpensePatterns() async {
-    final response = await _apiProvider.get('/api/v1/expenses/patterns/');
+    final response = await _apiProvider.get('/expenses/patterns/');
     return Map<String, dynamic>.from(response['data'] ?? {});
   }
 
   Future<Map<String, dynamic>> getPredictedExpenses() async {
-    final response = await _apiProvider.get('/api/v1/expenses/predictions/');
+    final response = await _apiProvider.get('/expenses/predictions/');
     return Map<String, dynamic>.from(response['data'] ?? {});
   }
 }

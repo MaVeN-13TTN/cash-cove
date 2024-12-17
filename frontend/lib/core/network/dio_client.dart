@@ -1,15 +1,11 @@
 import 'package:dio/dio.dart' as dio_client;
-import 'package:flutter_cache_manager/flutter_cache_manager.dart';
 import 'package:get/get.dart';
 import '../services/api/interceptors/auth_interceptor.dart';
 import '../services/api/interceptors/error_interceptor.dart';
-import '../services/api/interceptors/cache_interceptor.dart';
-import '../services/api/interceptors/rate_limit_interceptor.dart';
-import '../services/storage/secure_storage.dart';
-import '../services/auth/auth_service.dart';
 import '../services/auth/token_manager.dart';
 import '../services/dialog/dialog_service.dart';
-import 'interceptors/trailing_slash_interceptor.dart';
+import '../services/auth/auth_service.dart';
+import '../utils/logger_utils.dart';
 
 class DioClient extends GetxService {
   late dio_client.Dio _dio;
@@ -23,14 +19,11 @@ class DioClient extends GetxService {
   static Future<DioClient> initialize({
     required String baseUrl,
     required TokenManager tokenManager,
+    required DialogService dialogService,
+    required AuthService authService,
     dio_client.Dio? testDio,
   }) async {
     if (_instance == null) {
-      final storage = await SecureStorage.initialize();
-      final cacheManager = DefaultCacheManager();
-      final authService = Get.find<AuthService>();
-      final dialogService = Get.find<DialogService>();
-
       _instance = DioClient._internal();
       _instance!._dio = testDio ?? dio_client.Dio(
         dio_client.BaseOptions(
@@ -40,30 +33,25 @@ class DioClient extends GetxService {
           headers: {
             'Content-Type': 'application/json',
             'Accept': 'application/json',
-            'Access-Control-Allow-Origin': '*',
-            'Access-Control-Allow-Credentials': 'true',
           },
           validateStatus: (status) => status! < 500,
         ),
       );
 
-      // Add interceptors in the correct order
+      // Add interceptors
       _instance!._dio.interceptors.addAll([
-        TrailingSlashInterceptor(),
-        AuthInterceptor(storage),
+        AuthInterceptor(tokenManager),
         ErrorInterceptor(
           authService: authService,
           dialogService: dialogService,
         ),
-        CacheInterceptor(
-          cacheManager: cacheManager,
-          maxAge: const Duration(hours: 1),
-          cacheableMethods: const ['GET'],
+        dio_client.LogInterceptor(
+          requestBody: true,
+          responseBody: true,
+          logPrint: (obj) => LoggerUtils.debug(obj.toString()),
         ),
-        RateLimitInterceptor(),
       ]);
     }
-
     return _instance!;
   }
 
@@ -87,6 +75,12 @@ class DioClient extends GetxService {
     );
   }
 
+  // Update the authorization token
+  Future<void> updateAuthToken(String token) async {
+    _dio.options.headers['Authorization'] = 'Bearer $token';
+    LoggerUtils.info('Authorization token updated: Bearer $token');
+  }
+
   // Helper methods for different HTTP methods
   Future<dio_client.Response> get(
     String path, {
@@ -95,10 +89,17 @@ class DioClient extends GetxService {
     dio_client.CancelToken? cancelToken,
   }) async {
     try {
+      final mergedOptions = dio_client.Options(
+        headers: options?.headers,
+        responseType: options?.responseType ?? dio_client.ResponseType.json,
+        contentType: options?.contentType ?? 'application/json',
+        validateStatus: options?.validateStatus ?? ((status) => status! < 500),
+      );
+
       final response = await _dio.get(
         path,
         queryParameters: queryParameters,
-        options: options,
+        options: mergedOptions,
         cancelToken: cancelToken,
       );
       return response;
@@ -116,11 +117,19 @@ class DioClient extends GetxService {
     dio_client.CancelToken? cancelToken,
   }) async {
     try {
+      final mergedOptions = dio_client.Options(
+        headers: options?.headers,
+        responseType: options?.responseType ?? dio_client.ResponseType.json,
+        contentType: options?.contentType ?? 'application/json',
+        validateStatus: options?.validateStatus ?? ((status) => status! < 500),
+        sendTimeout: const Duration(seconds: 30),  // Apply sendTimeout only for POST requests
+      );
+
       final response = await _dio.post(
         path,
         data: data,
         queryParameters: queryParameters,
-        options: options,
+        options: mergedOptions,
         cancelToken: cancelToken,
       );
       return response;

@@ -212,4 +212,13 @@ class TokenManager {
       'refreshToken': 'new_refresh_token',
     };
   }
+
+  Future<String?> getCurrentAccessToken() async {
+    try {
+      return await _storage.read(_tokenKey);
+    } catch (e) {
+      LoggerUtils.error('Failed to retrieve access token', e);
+      return null;
+    }
+  }
 }

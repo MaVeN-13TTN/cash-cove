@@ -1,123 +1,120 @@
 import 'package:dio/dio.dart';
-
-class ApiProvider {
-  final String baseUrl;
-  late final Dio _dio;
-
-  ApiProvider({required this.baseUrl}) {
-    _dio = Dio(BaseOptions(
-      baseUrl: baseUrl,
-      headers: {'Content-Type': 'application/json'},
-      sendTimeout: const Duration(seconds: 15),
-      receiveTimeout: const Duration(seconds: 15),
-      connectTimeout: const Duration(seconds: 15),
-    ));
-  }
-
-  void setAuthToken(String token) {
-    _dio.options.headers['Authorization'] = 'Bearer $token';
-  }
-
-  Future<dynamic> get(
-    String endpoint, {
-    Map<String, dynamic>? queryParameters,
-  }) async {
-    try {
-      final response = await _dio.get(
-        endpoint.endsWith('/') ? endpoint : '$endpoint/',
-        queryParameters: queryParameters,
-      );
-      return response.data;
-    } on DioException catch (e) {
-      if (e.response?.statusCode == 404) {
-        return {'data': []};
-      }
-      throw _handleDioError(e);
-    }
-  }
-
-  Future<dynamic> post(
-    String endpoint,
-    dynamic data, {
-    Map<String, dynamic>? queryParameters,
-  }) async {
-    try {
-      final response = await _dio.post(
-        endpoint.endsWith('/') ? endpoint : '$endpoint/',
-        data: data,
-        queryParameters: queryParameters,
-      );
-      return response.data;
-    } on DioException catch (e) {
-      throw _handleDioError(e);
-    }
-  }
-
-  Future<dynamic> put(
-    String endpoint,
-    dynamic data, {
-    Map<String, dynamic>? queryParameters,
-  }) async {
-    try {
-      final response = await _dio.put(
-        endpoint.endsWith('/') ? endpoint : '$endpoint/',
-        data: data,
-        queryParameters: queryParameters,
-      );
-      return response.data;
-    } on DioException catch (e) {
-      throw _handleDioError(e);
-    }
-  }
-
-  Future<dynamic> delete(
-    String endpoint, {
-    Map<String, dynamic>? queryParameters,
-    dynamic data,
-  }) async {
-    try {
-      final response = await _dio.delete(
-        endpoint.endsWith('/') ? endpoint : '$endpoint/',
-        queryParameters: queryParameters,
-        data: data,
-      );
-      return response.data;
-    } on DioException catch (e) {
-      throw _handleDioError(e);
-    }
-  }
-
-  Exception _handleDioError(DioException e) {
-    switch (e.type) {
-      case DioExceptionType.connectionTimeout:
-      case DioExceptionType.sendTimeout:
-      case DioExceptionType.receiveTimeout:
-        return TimeoutException('Connection timed out. Please try again.');
-      case DioExceptionType.badResponse:
-        final statusCode = e.response?.statusCode;
-        final message = e.response?.data['message'] ?? 'An error occurred';
-        return ApiException(statusCode ?? 500, message);
-      default:
-        return Exception('An unexpected error occurred');
-    }
-  }
-}
+import '../../../core/services/storage/secure_storage.dart';
 
 class ApiException implements Exception {
-  final int statusCode;
   final String message;
+  final int? statusCode;
+  final dynamic error;
 
-  ApiException(this.statusCode, this.message);
+  ApiException(this.message, {this.statusCode, this.error});
 
   @override
-  String toString() => message;
+  String toString() => 'ApiException: $message${statusCode != null ? ' ($statusCode)' : ''}${error != null ? '\nError: $error' : ''}';
 }
 
-class TimeoutException implements Exception {
-  final String message;
+class ApiProvider {
+  final Dio _dio;
+  final SecureStorage _storage;
 
-  TimeoutException(this.message);
+  ApiProvider({
+    required Dio dio,
+    required SecureStorage storage,
+  })  : _dio = dio,
+        _storage = storage;
 
-  @override
-  String toString() => message;
+  Future<Map<String, String>> _getAuthHeaders() async {
+    final token = await _storage.getToken();
+    return {
+      if (token != null) 'Authorization': 'Bearer $token',
+      'Content-Type': 'application/json',
+    };
+  }
+
+  Future<void> setAuthToken(String token) async {
+    await _storage.setToken(token);
+  }
+
+  Future<dynamic> get(String endpoint) async {
+    try {
+      final response = await _dio.get(
+        endpoint,
+        options: Options(
+          headers: await _getAuthHeaders(),
+        ),
+      );
+      return response.data;
+    } on DioException catch (e) {
+      _handleDioError(e);
+    } catch (e) {
+      throw ApiException('Failed to perform GET request', error: e);
+    }
+  }
+
+  Future<dynamic> post(String endpoint, dynamic data) async {
+    try {
+      final response = await _dio.post(
+        endpoint,
+        data: data,
+        options: Options(
+          headers: await _getAuthHeaders(),
+        ),
+      );
+      return response.data;
+    } on DioException catch (e) {
+      _handleDioError(e);
+    } catch (e) {
+      throw ApiException('Failed to perform POST request', error: e);
+    }
+  }
+
+  Future<dynamic> put(String endpoint, dynamic data) async {
+    try {
+      final response = await _dio.put(
+        endpoint,
+        data: data,
+        options: Options(
+          headers: await _getAuthHeaders(),
+        ),
+      );
+      return response.data;
+    } on DioException catch (e) {
+      _handleDioError(e);
+    } catch (e) {
+      throw ApiException('Failed to perform PUT request', error: e);
+    }
+  }
+
+  Future<dynamic> delete(String endpoint) async {
+    try {
+      final response = await _dio.delete(
+        endpoint,
+        options: Options(
+          headers: await _getAuthHeaders(),
+        ),
+      );
+      return response.data;
+    } on DioException catch (e) {
+      _handleDioError(e);
+    } catch (e) {
+      throw ApiException('Failed to perform DELETE request', error: e);
+    }
+  }
+
+  Never _handleDioError(DioException e) {
+    final response = e.response;
+    if (response != null) {
+      final data = response.data;
+      final message = data is Map ? data['message'] ?? data['detail'] ?? e.message : e.message;
+      throw ApiException(
+        message.toString(),
+        statusCode: response.statusCode,
+        error: data,
+      );
+    }
+
+    throw ApiException(
+      e.message ?? 'Network error occurred',
+      error: e,
+    );
+  }
 }

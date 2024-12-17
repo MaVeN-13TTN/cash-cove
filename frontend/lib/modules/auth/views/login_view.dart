@@ -20,6 +20,8 @@ class _LoginViewState extends State<LoginView> {
     final scaffoldContext = ScaffoldMessenger.of(context);
     final topPadding = MediaQuery.of(context).padding.top;
 
+    //print("hello");
+
     try {
       await controller.login();
       if (!mounted) return;
@@ -40,7 +42,7 @@ class _LoginViewState extends State<LoginView> {
             ),
           ),
         );
-        
+
         // Wait for the snackbar to be visible before navigation
         await Future.delayed(const Duration(milliseconds: 500));
         // Navigate to home_view
@@ -50,8 +52,8 @@ class _LoginViewState extends State<LoginView> {
       if (!mounted) return;
 
       // Show the actual error from the backend
-      final errorMessage = controller.error.isNotEmpty 
-          ? controller.error 
+      final errorMessage = controller.error.isNotEmpty
+          ? controller.error
           : 'Invalid email or password. Please try again.';
 
       scaffoldContext.showSnackBar(
@@ -73,14 +75,14 @@ class _LoginViewState extends State<LoginView> {
   @override
   void initState() {
     super.initState();
-    
+
     // Check for pre-filled email from signup
     final arguments = Get.arguments;
     if (arguments != null) {
       if (arguments['pre_fill_email'] != null) {
         controller.emailController.text = arguments['pre_fill_email'];
       }
-      
+
       // Show signup success message if applicable
       if (arguments['signup_success'] == true) {
         WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -106,7 +108,7 @@ class _LoginViewState extends State<LoginView> {
             padding:
                 const EdgeInsets.symmetric(horizontal: 24.0, vertical: 16.0),
             child: Form(
-              key: LoginController.loginFormKey,
+              key: controller.loginFormKey,
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.start,
                 crossAxisAlignment: CrossAxisAlignment.center,

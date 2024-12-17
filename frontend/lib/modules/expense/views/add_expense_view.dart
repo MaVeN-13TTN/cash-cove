@@ -2,16 +2,14 @@ import 'dart:io';
 
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
-import 'package:get/get.dart';
+
 import 'package:intl/intl.dart';
-import 'package:uuid/uuid.dart';
+import 'package:get/get.dart';
 
 import '../../../core/utils/validators.dart';
 import '../../../data/models/expense/expense_model.dart';
 import '../../../shared/widgets/custom_text_field.dart';
 import '../controllers/expense_controller.dart';
-import '../../../core/services/auth/auth_service.dart';
-import '../../../core/services/storage/file_upload_service.dart';
 import 'widgets/expense_category_selector.dart';
 
 class AddExpenseView extends GetView<ExpenseController> {
@@ -233,85 +231,27 @@ class AddExpenseView extends GetView<ExpenseController> {
   }
 
   void _saveExpense(
-    GlobalKey<FormState> formKey,
-    TextEditingController titleController,
-    TextEditingController amountController,
-    TextEditingController descriptionController,
-    String category,
-    DateTime selectedDate,
-    RxList<File> attachments,
-  ) async {
-    if (formKey.currentState!.validate()) {
-      // Get current user ID from AuthService
-      final String? userId = Get.find<AuthService>().currentUser;
-
-      // Determine currency based on current locale
-      final String currency = 
-        NumberFormat.simpleCurrency().currencySymbol;
-
-      // Upload attachments
-      final List<String>? uploadedAttachments = attachments.isNotEmpty
-        ? await _uploadAttachments(attachments)
-        : null;
-
+      GlobalKey<FormState> formKey,
+      TextEditingController titleController,
+      TextEditingController amountController,
+      TextEditingController descriptionController,
+      String category,
+      DateTime selectedDate,
+      RxList<File> attachments,
+    ) {
       final expenseData = {
-        'id': isEditing ? expense!.id : const Uuid().v4(),
-        'userId': userId ?? 'unknown_user', // Fallback if no user ID
         'title': titleController.text,
-        'amount': double.parse(amountController.text),
-        'currency': currency,
-        'date': selectedDate,
+        'amount': double.tryParse(amountController.text) ?? 0.0,
+        'description': descriptionController.text,
         'category': category,
-        'description': descriptionController.text.isEmpty 
-          ? null 
-          : descriptionController.text,
-        'attachments': uploadedAttachments,
-        'createdAt': isEditing ? expense!.createdAt : DateTime.now(),
-        'updatedAt': DateTime.now(),
-        'budgetId': null, // Optional budget association
+        'date': DateFormat('yyyy-MM-dd').format(selectedDate),
+        'attachments': attachments.map((file) => file.path).toList(),
       };
 
-      try {
-        if (isEditing) {
-          await controller.updateExpense(expenseData['id'] as String, expenseData);
-        } else {
-          await controller.createExpense(expenseData);
-        }
-
-        Get.back(); // Close the form
-        Get.snackbar(
-          'Success', 
-          isEditing 
-            ? 'Expense updated successfully' 
-            : 'Expense added successfully',
-          snackPosition: SnackPosition.BOTTOM,
-        );
-      } catch (e) {
-        Get.snackbar(
-          'Error', 
-          'Failed to ${isEditing ? 'update' : 'add'} expense',
-          snackPosition: SnackPosition.BOTTOM,
-          backgroundColor: Colors.red,
-          colorText: Colors.white,
-        );
+      if (isEditing) {
+        controller.updateExpense(expense!.id.toString(), expenseData);
+      } else {
+        controller.createExpense(expenseData);
       }
     }
-  }
-
-  Future<List<String>?> _uploadAttachments(RxList<File> files) async {
-    try {
-      final fileUploadService = Get.find<FileUploadService>();
-      final List<String> uploadedFiles = await fileUploadService.uploadFiles(files.toList());
-      return uploadedFiles.map((fileId) => fileUploadService.getDownloadUrl(fileId)).toList();
-    } catch (e) {
-      Get.snackbar(
-        'Upload Error', 
-        'Failed to upload attachments',
-        snackPosition: SnackPosition.BOTTOM,
-        backgroundColor: Colors.red,
-        colorText: Colors.white,
-      );
-      return null;
-    }
-  }
 }

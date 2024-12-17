@@ -1,48 +1,73 @@
-import '../models/budget/budget_model.dart';
-import '../models/user/user_model.dart';
+import 'package:budget_tracker/core/utils/logger_utils.dart';
+import 'package:budget_tracker/data/models/budget/budget_model.dart';
+import 'package:budget_tracker/data/models/user/user_model.dart';
 import 'api_provider.dart';
 
 class BudgetProvider {
   final ApiProvider _apiProvider;
+  static const _endpoint = '/budgets/';  // Base endpoint for budgets
 
   BudgetProvider(this._apiProvider);
 
   Future<List<BudgetModel>> getBudgets() async {
     try {
-      final response = await _apiProvider.get('/budgets/');
+      LoggerUtils.info('Fetching budgets');
+      final response = await _apiProvider.get(_endpoint);
       final List<dynamic> budgets = response['data'] ?? [];
       return budgets.map((json) => BudgetModel.fromJson(json)).toList();
     } on ApiException catch (e) {
+      LoggerUtils.warning('Failed to fetch budgets', e);
       if (e.statusCode == 404) return [];
       rethrow;
     }
   }
 
   Future<BudgetModel> getBudget(String id) async {
-    final response = await _apiProvider.get('/budgets/$id/');
-    return BudgetModel.fromJson(response['data']);
+    final response = await _apiProvider.get('$_endpoint$id/');
+    final data = response is Map ? response['data'] ?? response : response;
+    return BudgetModel.fromJson(data);
   }
 
   Future<BudgetModel> createBudget(Map<String, dynamic> data) async {
-    final response = await _apiProvider.post('/budgets/', data);
-    return BudgetModel.fromJson(response['data']);
+    try {
+      LoggerUtils.info('Creating new budget');
+      // Convert to snake_case for backend
+      final requestData = _prepareRequestData(data);
+      
+      final response = await _apiProvider.post(_endpoint, requestData);
+      return BudgetModel.fromJson(response['data']);
+    } catch (e) {
+      LoggerUtils.error('Failed to create budget', e);
+      rethrow;
+    }
   }
 
   Future<BudgetModel> updateBudget(String id, Map<String, dynamic> data) async {
-    final response = await _apiProvider.put('/budgets/$id/', data);
-    return BudgetModel.fromJson(response['data']);
+    try {
+      LoggerUtils.info('Updating budget: $id');
+      final requestData = _prepareRequestData(data);
+      
+      final response = await _apiProvider.put('$_endpoint$id/', requestData);
+      return BudgetModel.fromJson(response['data']);
+    } catch (e) {
+      LoggerUtils.error('Failed to update budget: $id', e);
+      rethrow;
+    }
   }
 
   Future<void> deleteBudget(String id) async {
-    await _apiProvider.delete('/budgets/$id/');
+    try {
+      LoggerUtils.info('Deleting budget: $id');
+      await _apiProvider.delete('$_endpoint$id/');
+    } catch (e) {
+      LoggerUtils.error('Failed to delete budget: $id', e);
+      rethrow;
+    }
   }
 
   Future<List<BudgetModel>> getBudgetsByCategory(String category) async {
     try {
-      final response = await _apiProvider.get(
-        '/budgets/by-category/',
-        queryParameters: {'category': category},
-      );
+      final response = await _apiProvider.get('/budgets/by-category/');
       final List<dynamic> budgets = response['data'] ?? [];
       return budgets.map((json) => BudgetModel.fromJson(json)).toList();
     } on ApiException catch (e) {
@@ -53,34 +78,56 @@ class BudgetProvider {
 
   // New Analytics Methods
   Future<Map<String, dynamic>> getBudgetAnalytics(String budgetId) async {
-    final response = await _apiProvider.get('/budgets/$budgetId/analytics/');
+    final response = await _apiProvider.get('$_endpoint$budgetId/analytics/');
     return Map<String, dynamic>.from(response['data'] ?? {});
   }
 
   Future<Map<String, dynamic>> getBudgetPerformance(String budgetId) async {
-    final response = await _apiProvider.get('/budgets/$budgetId/performance/');
+    final response = await _apiProvider.get('$_endpoint$budgetId/performance/');
     return Map<String, dynamic>.from(response['data'] ?? {});
   }
 
   Future<Map<String, dynamic>> getBudgetProjections(String budgetId) async {
-    final response = await _apiProvider.get('/budgets/$budgetId/projections/');
+    final response = await _apiProvider.get('$_endpoint$budgetId/projections/');
     return Map<String, dynamic>.from(response['data'] ?? {});
+  }
+
+  Future<Map<String, dynamic>> getBudgetForecast() async {
+    try {
+      LoggerUtils.info('Fetching budget forecast');
+      final response = await _apiProvider.get('/budgets/forecast/');
+      return Map<String, dynamic>.from(response['data'] ?? {});
+    } catch (e) {
+      LoggerUtils.error('Failed to fetch budget forecast', e);
+      rethrow;
+    }
+  }
+
+  Future<Map<String, dynamic>> getBudgetUtilization(String budgetId) async {
+    try {
+      LoggerUtils.info('Fetching budget utilization for: $budgetId');
+      final response = await _apiProvider.get('$_endpoint$budgetId/utilization/');
+      return Map<String, dynamic>.from(response['data'] ?? {});
+    } catch (e) {
+      LoggerUtils.error('Failed to fetch budget utilization', e);
+      rethrow;
+    }
   }
 
   // Budget Sharing
   Future<void> shareBudget(String budgetId, List<String> userIds) async {
     await _apiProvider.post(
-      '/budgets/$budgetId/share/',
+      '$_endpoint$budgetId/share/',
       {'user_ids': userIds},
     );
   }
 
   Future<void> removeBudgetShare(String budgetId, String userId) async {
-    await _apiProvider.delete('/budgets/$budgetId/share/$userId/');
+    await _apiProvider.delete('$_endpoint$budgetId/share/$userId/');
   }
 
   Future<List<UserModel>> getBudgetShares(String budgetId) async {
-    final response = await _apiProvider.get('/budgets/$budgetId/shares/');
+    final response = await _apiProvider.get('$_endpoint$budgetId/shares/');
     return (response['data'] as List)
         .map((json) => UserModel.fromJson(json))
         .toList();
@@ -92,43 +139,17 @@ class BudgetProvider {
     return List<String>.from(response['data'] ?? []);
   }
 
-  Future<Map<String, dynamic>> getCategorySpendingLimits() async {
-    final response = await _apiProvider.get('/budgets/category-limits/');
-    return Map<String, dynamic>.from(response['data'] ?? {});
-  }
-
-  Future<void> setCategoryLimit(String category, double limit) async {
-    await _apiProvider.post(
-      '/budgets/category-limits/',
-      {'category': category, 'limit': limit},
-    );
-  }
-
-  // Budget Rules
-  Future<void> addBudgetRule(String budgetId, Map<String, dynamic> rule) async {
-    await _apiProvider.post('/budgets/$budgetId/rules/', rule);
-  }
-
-  Future<void> removeBudgetRule(String budgetId, String ruleId) async {
-    await _apiProvider.delete('/budgets/$budgetId/rules/$ruleId/');
-  }
-
-  Future<List<Map<String, dynamic>>> getBudgetRules(String budgetId) async {
-    final response = await _apiProvider.get('/budgets/$budgetId/rules/');
-    return List<Map<String, dynamic>>.from(response['data'] ?? []);
-  }
-
-  // Budget Notifications
-  Future<void> setBudgetAlert(String budgetId, Map<String, dynamic> alert) async {
-    await _apiProvider.post('/budgets/$budgetId/alerts/', alert);
-  }
-
-  Future<void> removeBudgetAlert(String budgetId, String alertId) async {
-    await _apiProvider.delete('/budgets/$budgetId/alerts/$alertId/');
-  }
-
-  Future<List<Map<String, dynamic>>> getBudgetAlerts(String budgetId) async {
-    final response = await _apiProvider.get('/budgets/$budgetId/alerts/');
-    return List<Map<String, dynamic>>.from(response['data'] ?? []);
+  Map<String, dynamic> _prepareRequestData(Map<String, dynamic> data) {
+    // Convert camelCase to snake_case for backend compatibility
+    return {
+      'name': data['name'],
+      'amount': data['amount'],
+      'category': data['category'],
+      'start_date': data['startDate'],
+      'end_date': data['endDate'],
+      'description': data['description'],
+      if (data.containsKey('isRecurring')) 'is_recurring': data['isRecurring'],
+      if (data.containsKey('recurringPeriod')) 'recurring_period': data['recurringPeriod'],
+    };
   }
 }

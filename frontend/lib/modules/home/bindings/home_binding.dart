@@ -1,5 +1,9 @@
 import 'package:get/get.dart';
 
+// Import core services
+import '../../../core/network/dio_client.dart';
+import '../../../core/services/storage/secure_storage.dart';
+
 // Import API provider
 import '../../../data/providers/api_provider.dart';
 
@@ -29,8 +33,14 @@ import '../../expense/bindings/expense_binding.dart';
 class HomeBinding extends Bindings {
   @override
   void dependencies() {
-    // Ensure ApiProvider is registered first
-    Get.lazyPut<ApiProvider>(() => ApiProvider(baseUrl: 'https://api.budgettracker.com'));
+    final dioClient = Get.find<DioClient>();
+    final secureStorage = Get.find<SecureStorage>();
+
+    // Register ApiProvider with DioClient and SecureStorage
+    Get.lazyPut<ApiProvider>(() => ApiProvider(
+          dio: dioClient.dio,
+          storage: secureStorage,
+        ));
 
     // Providers
     Get.lazyPut<BudgetProvider>(() => BudgetProvider(
@@ -50,29 +60,21 @@ class HomeBinding extends Bindings {
 
     // Initialize settings service if not already initialized
     if (!Get.isRegistered<SettingsService>()) {
-      final settingsService = SettingsService();
-      settingsService.onInit();
-      Get.put<SettingsService>(settingsService, permanent: true);
+      Get.lazyPut<SettingsService>(() => SettingsService());
     }
 
-    // Core controllers
+    // Initialize controllers
     Get.lazyPut<HomeController>(() => HomeController());
-
-    // Feature controllers with repositories
     Get.lazyPut<DashboardController>(() => DashboardController(
           budgetRepository: Get.find<BudgetRepository>(),
           expenseRepository: Get.find<ExpenseRepository>(),
         ));
-
     Get.lazyPut<BudgetController>(() => BudgetController(
           repository: Get.find<BudgetRepository>(),
         ));
-
     Get.lazyPut<ExpenseController>(() => ExpenseController(
           repository: Get.find<ExpenseRepository>(),
         ));
-
-    // Initialize settings controller
     Get.lazyPut<SettingsController>(() => SettingsController());
 
     // Apply other bindings
