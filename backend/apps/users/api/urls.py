@@ -8,7 +8,8 @@ from .views import (
     ResetPasswordConfirmView,
     CustomTokenObtainPairView,
     ProfileViewSet,
-    SecurityStatusViewSet
+    SecurityStatusViewSet,
+    CheckEmailView,
 )
 
 urlpatterns = [
@@ -20,6 +21,11 @@ urlpatterns = [
         "api/v1/auth/reset-password-confirm/",
         ResetPasswordConfirmView.as_view(),
         name="reset-password-confirm",
+    ),
+    path(
+        "api/v1/auth/check-email/",
+        CheckEmailView.as_view(),
+        name="check-email",
     ),
     
     # Profile endpoints

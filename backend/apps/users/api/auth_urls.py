@@ -9,7 +9,8 @@ from .views import (
     ResetPasswordView, 
     ResetPasswordConfirmView,
     CustomTokenObtainPairView,
-    ProfileViewSet
+    ProfileViewSet,
+    CheckEmailView
 )
 
 urlpatterns = [
@@ -31,7 +32,7 @@ urlpatterns = [
     path('security-status/', UserViewSet.as_view({'get': 'security_status'}), name='security_status'),
     
     # Additional Authentication Routes
-    path('check-email/', UserViewSet.as_view({"get": "check_email"}), name="check-email"),
+    path('check-email/', CheckEmailView.as_view(), name="check-email"),
     path('send-verification-email/', UserViewSet.as_view({"post": "send_verification_email"}), name="send-verification-email"),
     path('google/', UserViewSet.as_view({"post": "google_login"}), name="google"),
     path('facebook/', UserViewSet.as_view({"post": "facebook_login"}), name="facebook"),

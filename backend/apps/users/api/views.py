@@ -506,3 +506,20 @@ class CustomTokenObtainPairView(generics.GenericAPIView):
             # Log unexpected errors
             logger.error(f"Unexpected error during login: {e}")
             raise
+
+
+class CheckEmailView(generics.GenericAPIView):
+    """View for checking email availability."""
+    permission_classes = [AllowAny]
+    
+    def post(self, request: Request) -> Response:
+        """Check if email is available."""
+        email = request.data.get("email")
+        if not email:
+            return Response(
+                {"error": _("Email is required")},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        exists = User.objects.filter(email=email).exists()
+        return Response({"available": not exists})
